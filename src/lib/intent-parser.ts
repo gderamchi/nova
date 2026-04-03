@@ -1,20 +1,29 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { INTENT_PARSER_SYSTEM_PROMPT } from './prompts';
 import type { ParsedIntent, IntentParseResult } from './intent-types';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
-
 export async function parseIntent(userMessage: string): Promise<IntentParseResult> {
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 512,
-      system: INTENT_PARSER_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userMessage }],
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 512,
+        system: INTENT_PARSER_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: userMessage }],
+      }),
     });
 
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Anthropic API ${res.status}: ${errBody}`);
+    }
+
+    const response = await res.json();
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(cleaned);
