@@ -60,3 +60,14 @@ export async function getNextNonce(chainId: number): Promise<number> {
   const account = getServerAccount();
   return publicClient.getTransactionCount({ address: account.address, blockTag: 'pending' });
 }
+
+export async function getGasOverrides(chainId: number) {
+  const publicClient = getServerPublicClient(chainId);
+  const gasPrice = await publicClient.getGasPrice();
+  // Use 3x current gas price to avoid underpriced errors
+  const maxFee = gasPrice * BigInt(3) > BigInt(1000000000) ? gasPrice * BigInt(3) : BigInt(1000000000);
+  return {
+    maxFeePerGas: maxFee,
+    maxPriorityFeePerGas: maxFee / BigInt(2),
+  };
+}

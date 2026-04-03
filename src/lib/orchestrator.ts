@@ -16,7 +16,7 @@ import type {
   TransactionPlan,
 } from './intent-types';
 import { SUPPORTED_CHAINS } from './intent-types';
-import { getServerWalletClient, getServerPublicClient, getServerAccount, getNextNonce } from './server-account';
+import { getServerWalletClient, getServerPublicClient, getServerAccount, getNextNonce, getGasOverrides } from './server-account';
 import { getExplorerTxUrl, getTokenAddress } from './chains';
 import { getSwapQuote } from './uniswap/quote';
 import { resolveToken } from './uniswap/tokens';
@@ -164,7 +164,9 @@ async function handleSwap(
   if (isEthIn) {
     plan.steps[0] = { label: 'Wrapping ETH -> WETH', status: 'active' };
     nonce = await getNextNonce(chainId);
+    const wrapGas = await getGasOverrides(chainId);
     const wrapHash = await walletClient.sendTransaction({
+      ...wrapGas,
       nonce,
       to: wethAddress,
       value: amountIn,
@@ -185,7 +187,9 @@ async function handleSwap(
     args: [SWAP_ROUTER, amountIn],
   });
   nonce = await getNextNonce(chainId);
+    const approveGas = await getGasOverrides(chainId);
   const approveHash = await walletClient.sendTransaction({
+    ...approveGas,
     nonce,
     to: tokenInAddress,
     data: approveData,
@@ -219,7 +223,9 @@ async function handleSwap(
   });
 
   nonce = await getNextNonce(chainId);
+    const swapGas = await getGasOverrides(chainId);
   const swapHash = await walletClient.sendTransaction({
+    ...swapGas,
     nonce,
     to: SWAP_ROUTER,
     data: swapData,
@@ -276,7 +282,11 @@ async function handleBridge(
   const amountWei = BigInt(Math.floor(parseFloat(intent.amount) * 10 ** decimals));
 
   // Send to Across spoke pool
+  const bridgeNonce = await getNextNonce(fromChainId);
+  const bridgeGas = await getGasOverrides(fromChainId);
   const txHash = await walletClient.sendTransaction({
+    ...bridgeGas,
+    nonce: bridgeNonce,
     to: quote.spokePoolAddress,
     value: isEth ? amountWei : BigInt(0),
     data: '0x' as `0x${string}`,
@@ -348,10 +358,14 @@ async function handleTransfer(
   };
 
   let txHash: `0x${string}`;
+  const transferNonce = await getNextNonce(chainId);
+  const transferGas = await getGasOverrides(chainId);
 
   if (isEth) {
     // Native ETH transfer
     txHash = await walletClient.sendTransaction({
+      ...transferGas,
+      nonce: transferNonce,
       to: recipient,
       value: parseEther(intent.amount),
       chain: walletClient.chain,
@@ -376,6 +390,8 @@ async function handleTransfer(
       args: [recipient, amountWei],
     });
     txHash = await walletClient.sendTransaction({
+      ...transferGas,
+      nonce: transferNonce,
       to: token.address,
       data,
       chain: walletClient.chain,
