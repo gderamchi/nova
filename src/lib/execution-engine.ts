@@ -108,5 +108,9 @@ export function formatExecutionSummary(result: OrchestratorResult): string {
     lines.push(`Tx: ${result.txHashes[0].slice(0, 10)}...${result.txHashes[0].slice(-6)}`);
   }
 
+  if (result.explorerUrls && result.explorerUrls.length > 0) {
+    lines.push(`Explorer: ${result.explorerUrls[result.explorerUrls.length - 1]}`);
+  }
+
   return lines.join('\n');
 }
