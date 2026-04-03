@@ -6,7 +6,7 @@ export const baseSepolia: Chain = {
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
     default: {
-      http: [process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC ?? 'https://sepolia.base.org'],
+      http: [process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC ?? 'https://base-sepolia-rpc.publicnode.com'],
     },
   },
   blockExplorers: {
@@ -21,7 +21,7 @@ export const arbitrumSepolia: Chain = {
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
     default: {
-      http: [process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://sepolia-rollup.arbitrum.io/rpc'],
+      http: [process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://arbitrum-sepolia-rpc.publicnode.com'],
     },
   },
   blockExplorers: {
