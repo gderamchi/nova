@@ -69,7 +69,7 @@ export default function MiniAppPage() {
       const intent = parseResult.intent;
       addMessage('assistant', parseResult.message);
 
-      // Step 2: Show execution plan
+      // Step 2: Show execution plan (loading state)
       const plan: TransactionPlan = {
         steps: [
           { label: `Parsing: ${intent.action} ${intent.amount} ${intent.tokenIn}`, status: 'complete' },
@@ -84,8 +84,7 @@ export default function MiniAppPage() {
 
       setActivePlan(plan);
 
-      // Step 3: Simulate execution stages
-      await sleep(800);
+      // Step 3: Call real backend orchestrator
       setActivePlan({
         ...plan,
         steps: plan.steps.map((s, i) => ({
@@ -94,23 +93,33 @@ export default function MiniAppPage() {
         })),
       });
 
-      await sleep(1000);
-      const simHash = `0x${Date.now().toString(16)}${'a'.repeat(40)}`.slice(0, 66);
-      setTxHashes([simHash]);
-      setActivePlan({
-        ...plan,
-        steps: plan.steps.map(s => ({ ...s, status: 'complete' })),
+      const execRes = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intentResult: parseResult }),
       });
 
-      // Final confirmation message
-      const actionMessages: Record<string, string> = {
-        swap: `Swapped ${intent.amount} ${intent.tokenIn} → ${intent.tokenOut}. Tx confirmed on ${intent.chainFrom === 'arbitrum-sepolia' ? 'Arbitrum' : 'Base'} Sepolia.`,
-        bridge: `Bridging ${intent.amount} ${intent.tokenIn} from ${intent.chainFrom === 'arbitrum-sepolia' ? 'Arbitrum' : 'Base'} → ${intent.chainTo === 'arbitrum-sepolia' ? 'Arbitrum' : 'Base'}. ETA ~2 min.`,
-        transfer: `Sent ${intent.amount} ${intent.tokenIn} to ${intent.recipient ?? 'recipient'}. Confirmed!`,
-        balance: `Your balance on ${intent.chainFrom === 'arbitrum-sepolia' ? 'Arbitrum' : 'Base'} Sepolia:\n- ETH: 0.5\n- USDC: 250.00\n- DAI: 100.00`,
-      };
+      const execResult = await execRes.json();
 
-      addMessage('assistant', actionMessages[intent.action] ?? `${intent.action} completed successfully.`);
+      if (execResult.success && execResult.plan) {
+        setActivePlan(execResult.plan);
+      } else {
+        setActivePlan({
+          ...plan,
+          steps: plan.steps.map(s => ({ ...s, status: execResult.success ? 'complete' : 'error' })),
+        });
+      }
+
+      if (execResult.txHashes?.length) {
+        setTxHashes(execResult.txHashes);
+      }
+
+      // Show real result message with explorer links
+      let resultMsg = execResult.message || `${intent.action} completed.`;
+      if (execResult.explorerUrls?.length) {
+        resultMsg += '\n\n' + execResult.explorerUrls.map((url: string) => `🔗 ${url}`).join('\n');
+      }
+      addMessage('assistant', resultMsg);
     } catch (error) {
       addMessage('assistant', 'Something went wrong. Please try again.');
     } finally {
