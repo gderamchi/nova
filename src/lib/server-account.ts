@@ -64,10 +64,11 @@ export async function getNextNonce(chainId: number): Promise<number> {
 export async function getGasOverrides(chainId: number) {
   const publicClient = getServerPublicClient(chainId);
   const gasPrice = await publicClient.getGasPrice();
-  // Use 3x current gas price to avoid underpriced errors
-  const maxFee = gasPrice * BigInt(3) > BigInt(1000000000) ? gasPrice * BigInt(3) : BigInt(1000000000);
+  // Use 10x current gas price with 10 gwei minimum to avoid underpriced errors on testnets
+  const minGas = BigInt(10000000000); // 10 gwei
+  const maxFee = gasPrice * BigInt(10) > minGas ? gasPrice * BigInt(10) : minGas;
   return {
     maxFeePerGas: maxFee,
-    maxPriorityFeePerGas: maxFee / BigInt(2),
+    maxPriorityFeePerGas: maxFee,
   };
 }
