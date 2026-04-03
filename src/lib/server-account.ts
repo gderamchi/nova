@@ -54,3 +54,9 @@ export function getServerPublicClient(chainId: number): PublicClient {
     transport: http(),
   });
 }
+
+export async function getNextNonce(chainId: number): Promise<number> {
+  const publicClient = getServerPublicClient(chainId);
+  const account = getServerAccount();
+  return publicClient.getTransactionCount({ address: account.address, blockTag: 'pending' });
+}

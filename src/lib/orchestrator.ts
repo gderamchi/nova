@@ -16,7 +16,7 @@ import type {
   TransactionPlan,
 } from './intent-types';
 import { SUPPORTED_CHAINS } from './intent-types';
-import { getServerWalletClient, getServerPublicClient, getServerAccount } from './server-account';
+import { getServerWalletClient, getServerPublicClient, getServerAccount, getNextNonce } from './server-account';
 import { getExplorerTxUrl, getTokenAddress } from './chains';
 import { getSwapQuote } from './uniswap/quote';
 import { resolveToken } from './uniswap/tokens';
@@ -158,10 +158,14 @@ async function handleSwap(
   const decimals = tokenIn?.decimals ?? 18;
   const amountIn = BigInt(Math.floor(parseFloat(intent.amount) * 10 ** decimals));
 
+  let nonce: number;
+
   // If sending ETH, wrap it first (deposit to WETH)
   if (isEthIn) {
     plan.steps[0] = { label: 'Wrapping ETH -> WETH', status: 'active' };
+    nonce = await getNextNonce(chainId);
     const wrapHash = await walletClient.sendTransaction({
+      nonce,
       to: wethAddress,
       value: amountIn,
       chain: walletClient.chain,
@@ -180,7 +184,9 @@ async function handleSwap(
     functionName: 'approve',
     args: [SWAP_ROUTER, amountIn],
   });
+  nonce = await getNextNonce(chainId);
   const approveHash = await walletClient.sendTransaction({
+    nonce,
     to: tokenInAddress,
     data: approveData,
     chain: walletClient.chain,
@@ -212,7 +218,9 @@ async function handleSwap(
     ],
   });
 
+  nonce = await getNextNonce(chainId);
   const swapHash = await walletClient.sendTransaction({
+    nonce,
     to: SWAP_ROUTER,
     data: swapData,
     value: BigInt(0),
