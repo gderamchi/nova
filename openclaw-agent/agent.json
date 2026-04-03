@@ -1,0 +1,85 @@
+{
+  "name": "Nova",
+  "version": "1.0.0",
+  "description": "Zero-click cross-chain DeFi agent. Parses natural language, plans routes, and executes DeFi operations via account abstraction.",
+  "author": "Nova Team",
+  "license": "MIT",
+  "runtime": "nextjs",
+  "entrypoint": "src/lib/openclaw/agent.ts",
+  "skills": [
+    {
+      "name": "swap",
+      "description": "Swap tokens via Uniswap V3",
+      "handler": "src/lib/uniswap/swap.ts",
+      "parameters": {
+        "tokenIn": { "type": "string", "required": true },
+        "tokenOut": { "type": "string", "required": true },
+        "amount": { "type": "string", "required": true },
+        "chainId": { "type": "number", "default": 84532 },
+        "slippage": { "type": "number", "default": 0.5 }
+      }
+    },
+    {
+      "name": "bridge",
+      "description": "Bridge tokens cross-chain via Across Protocol",
+      "handler": "src/lib/bridge/across.ts",
+      "parameters": {
+        "token": { "type": "string", "required": true },
+        "amount": { "type": "string", "required": true },
+        "fromChainId": { "type": "number", "required": true },
+        "toChainId": { "type": "number", "required": true }
+      }
+    },
+    {
+      "name": "transfer",
+      "description": "Transfer tokens to address or ENS",
+      "handler": "src/lib/smart-account.ts",
+      "parameters": {
+        "token": { "type": "string", "required": true },
+        "amount": { "type": "string", "required": true },
+        "recipient": { "type": "string", "required": true },
+        "chainId": { "type": "number", "default": 84532 }
+      }
+    },
+    {
+      "name": "balance",
+      "description": "Check multi-chain balances",
+      "handler": "src/lib/smart-account.ts",
+      "parameters": {
+        "token": { "type": "string", "default": "all" },
+        "chainId": { "type": "number", "default": 0 }
+      }
+    },
+    {
+      "name": "nanopay",
+      "description": "USDC nanopayment via Arc/Circle",
+      "handler": "src/lib/arc/nanopay.ts",
+      "parameters": {
+        "amount": { "type": "string", "required": true },
+        "recipient": { "type": "string", "required": true },
+        "memo": { "type": "string" }
+      }
+    }
+  ],
+  "capabilities": {
+    "chains": [84532, 421614],
+    "protocols": ["uniswap-v3", "across-protocol", "ens", "arc-circle", "hedera"],
+    "features": [
+      "natural-language-parsing",
+      "account-abstraction",
+      "cross-chain-routing",
+      "gas-sponsorship",
+      "agent-payments",
+      "audit-trail"
+    ]
+  },
+  "identity": {
+    "type": "ens",
+    "name": "nova-agent.eth",
+    "avatar": "https://api.dicebear.com/7.x/shapes/svg?seed=nova-agent"
+  },
+  "storage": {
+    "provider": "0g",
+    "endpoint": "https://indexer-storage-testnet-turbo.0g.ai"
+  }
+}

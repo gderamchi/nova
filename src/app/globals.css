@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-nova-bg text-nova-text antialiased;
+  }
+}
+
+@layer components {
+  .nova-card {
+    @apply bg-nova-surface border border-nova-border rounded-2xl p-4;
+  }
+
+  .nova-button {
+    @apply bg-nova-accent hover:bg-nova-accent/80 text-white font-medium
+      rounded-xl px-4 py-2 transition-all duration-200 active:scale-95;
+  }
+
+  .nova-input {
+    @apply bg-nova-surface border border-nova-border rounded-xl px-4 py-3
+      text-nova-text placeholder-nova-muted focus:outline-none
+      focus:border-nova-accent/50 focus:ring-1 focus:ring-nova-accent/30
+      transition-all duration-200;
+  }
+
+  .nova-gradient-text {
+    @apply bg-gradient-to-r from-nova-accent to-nova-accent-light
+      bg-clip-text text-transparent;
+  }
+
+  .typing-indicator::after {
+    content: '...';
+    animation: typing 1.4s steps(4) infinite;
+  }
+
+  @keyframes typing {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-nova-border rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-nova-muted;
+}
