@@ -50,11 +50,12 @@ export async function parseIntent(userMessage: string): Promise<IntentParseResul
       intent,
       message: parsed.message ?? `Got it: ${intent.action} ${intent.amount} ${intent.tokenIn}`,
     };
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[intent-parser] Error:', error?.message ?? error, 'API key set:', !!process.env.ANTHROPIC_API_KEY);
     return {
       success: false,
       intent: null,
-      message: 'Failed to parse your request. Try again with something like "swap 0.1 ETH to USDC".',
+      message: `Failed to parse your request: ${error?.message ?? 'unknown error'}`,
       suggestions: [
         'Swap 0.1 ETH to USDC',
         'Check my balance on Base',
