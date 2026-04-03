@@ -139,7 +139,7 @@
 - Hours 26-36: Buffer, polish, demo prep
 
 ## API Keys Needed
-- [x] Telegram Bot: REDACTED_TELEGRAM_TOKEN
+- [x] Telegram Bot: (see .env.local)
 - [x] Anthropic Claude: (same as OpenClaw)
 - [ ] Pimlico: https://dashboard.pimlico.io
 - [ ] Alchemy RPC: https://www.alchemy.com
