@@ -29,6 +29,7 @@ import { createReplyPayment, crossChainUSDCTransfer } from './arc/agent-commerce
 import { getUSDCBalance, USDC_BASE_SEPOLIA } from './circle/gateway';
 import { mintNovaReward } from './hedera/hts';
 import { setMemory, getMemoryStore } from './openclaw/memory';
+import { isWalletFrozen, checkSpendingLimit, recordSpending } from './security';
 
 // Uniswap V3 SwapRouter02 on Base Sepolia
 const SWAP_ROUTER: `0x${string}` = '0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4';
@@ -112,8 +113,32 @@ export async function orchestrate(
 
   const intent = intentResult.intent;
 
+  // === WALLET FREEZE CHECK ===
+  if (isWalletFrozen(sender)) {
+    return {
+      success: false,
+      message: '\u{1F512} Your wallet is frozen. Contact support to unfreeze.',
+      plan: null,
+      txHashes: [],
+    };
+  }
+
   // === SERVER-SIDE GUARDRAILS (can't be bypassed by prompt injection) ===
   const amount = parseFloat(intent.amount || '0');
+
+  // Spending limit enforcement
+  if (['swap', 'bridge', 'transfer', 'nanopay'].includes(intent.action) && amount > 0) {
+    const token = intent.tokenIn || 'ETH';
+    const spendCheck = checkSpendingLimit(sender, amount, token);
+    if (!spendCheck.allowed) {
+      return {
+        success: false,
+        message: `\u26D4 ${spendCheck.reason}`,
+        plan: null,
+        txHashes: [],
+      };
+    }
+  }
 
   // Block absurdly large amounts
   if (amount > 10 && intent.tokenIn?.toUpperCase() === 'ETH') {
