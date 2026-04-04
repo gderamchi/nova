@@ -2,9 +2,11 @@
 
 > 🏗️ Built at **ETHGlobal Cannes 2026** | [Live Demo](https://nova-sigma-steel.vercel.app) | [Telegram Bot](https://t.me/novahackathon_bot)
 
+> **💬 Natural-language DeFi agent in Telegram: just type what you want, Nova executes it on-chain.**
+
 ## 🧠 What is Nova?
 
-Nova is an AI-powered DeFi agent that runs inside **Telegram** as a Mini App. Just type what you want in natural language — swap tokens, bridge cross-chain, send payments — and Nova handles everything. No wallet setup, no gas management, no dApp UI to learn.
+Nova is an AI-powered DeFi agent that lives inside a **Telegram Mini-App**. Users interact with it using plain English — commands like "swap 0.1 ETH to USDC" or "bridge 100 USDC from Base to Arbitrum" — and Nova parses the intent, builds a transaction plan, and executes real on-chain operations with zero manual clicks. It supports token swaps via Uniswap V3, cross-chain bridging via Across Protocol, native/ERC-20 transfers, multi-chain balance checks, USDC nanopayments between agents via Arc/Circle, and a full immutable audit trail powered by Hedera Consensus Service. Each Telegram user gets a deterministic wallet derived from a master key, so there's no seed phrase or wallet setup required. Nova also registers itself as an ENS-identified agent (`nova-agent.eth`) with on-chain metadata, and persists its operation history to 0G decentralized storage. The result is a conversational interface where DeFi feels as simple as texting a friend.
 
 ```
 "Swap 0.01 ETH to USDC"  →  ✅ Real Uniswap V3 transaction on-chain
@@ -22,6 +24,14 @@ Nova is an AI-powered DeFi agent that runs inside **Telegram** as a Mini App. Ju
 - 📝 **Audit Trail** — Every operation logged to Hedera Consensus Service (HCS)
 - 🧠 **Agent Memory** — Persistent operation history via 0G decentralized storage
 - 🔗 **ENS Identity** — Agent identity and discovery via ENS names
+
+## 🔧 How It's Made
+
+Nova is built on **Next.js 14** (App Router) with a Telegram Mini-App frontend using `@telegram-apps/sdk-react`. The core pipeline works in three stages: **parse → plan → execute**. Natural language is sent to **Claude Sonnet 4** (Anthropic API) with a structured system prompt that outputs typed JSON intents (swap, bridge, transfer, balance, nanopay, audit, memory). The orchestrator (`orchestrator.ts`) then routes each intent to the appropriate handler.
+
+For swaps, we call **Uniswap V3's SwapRouter02** directly on Base Sepolia — encoding `exactInputSingle` + `refundETH` into a `multicall` for ETH-in swaps, or doing approve-then-swap for ERC-20s, all using `viem`'s `encodeFunctionData`. Cross-chain bridging hits the **Across Protocol** suggested-fees API for quotes and sends deposits to the spoke pool contract. Per-user wallets are derived deterministically via `keccak256(masterKey + "nova-user-" + telegramUserId)` — a hacky but effective way to give every Telegram user their own wallet with no onboarding, and a treasury account auto-funds new users with gas.
+
+**ENS** (`@ensdomains/ensjs` on mainnet) provides agent identity: Nova registers text records (agent-type, skills, version) and resolves `.eth` recipients. **0G Storage** persists agent memory (operation history, preferences) to decentralized storage with a local cache fallback. **Arc/Circle** powers USDC nanopayments between agents — every operation logs a micro-fee to a payment ledger. **Hedera Consensus Service** (`@hashgraph/sdk`) writes every swap, bridge, and transfer to an HCS topic for an immutable audit trail. The whole thing is wrapped as an **OpenClaw agent** with a skill manifest (`agent.json` + `SKILL.md`) exposing swap/bridge/transfer/balance/nanopay as composable agent skills. All partner integrations gracefully degrade to simulated mode when API keys aren't configured, so the demo always works.
 
 ## 🏗️ Architecture
 
