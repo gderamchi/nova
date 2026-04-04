@@ -121,12 +121,33 @@ function DepositModal({
   };
 
   return (
-    <div className="z-[9999]" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'flex-end' }}>
-      {/* Backdrop */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)' }} onClick={onClose} />
-
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100vw', height: '100vh',
+        zIndex: 9999,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+      }}
+    >
       {/* Sheet */}
-      <div style={{ position: 'relative', width: '100%', background: 'rgba(20, 15, 35, 0.98)', borderTop: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px 16px 0 0', maxHeight: '70vh', overflowY: 'auto', padding: '20px', paddingBottom: '32px' }}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          background: 'rgba(20, 15, 35, 0.98)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '16px 16px 0 0',
+          overflowY: 'auto',
+          padding: '20px',
+          paddingBottom: '40px',
+          maxHeight: '70dvh',
+          flexShrink: 0,
+        }}
+      >
         {/* Close button */}
         <button
           onClick={onClose}
