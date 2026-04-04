@@ -27,7 +27,7 @@ export interface HCSMessage {
 const hcsLog: HCSLogEntry[] = [];
 let sequenceCounter = 0;
 
-const DEMO_TOPIC_ID = '0.0.nova-audit';
+const DEMO_TOPIC_ID = '0.0.8504799';
 
 export async function logToHCS(message: HCSMessage): Promise<HCSLogEntry> {
   const config = {
@@ -45,7 +45,7 @@ export async function logToHCS(message: HCSMessage): Promise<HCSLogEntry> {
       const client = Client.forTestnet();
       client.setOperator(
         AccountId.fromString(config.accountId),
-        PrivateKey.fromStringED25519(config.privateKey),
+        PrivateKey.fromStringECDSA(config.privateKey),
       );
 
       const response = await new TopicMessageSubmitTransaction()
