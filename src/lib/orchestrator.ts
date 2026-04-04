@@ -152,13 +152,14 @@ export async function orchestrate(
 
     return result;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
+    const rawMsg = error instanceof Error ? error.message : 'Unknown error';
+    const userMsg = formatUserError(rawMsg, intent);
     return {
       success: false,
-      message: `Transaction failed: ${msg}`,
+      message: userMsg,
       plan: null,
       txHashes: [],
-      error: msg,
+      error: rawMsg,
     };
   }
 }
@@ -680,4 +681,34 @@ function getChainId(chainName: string): number {
 
 function getChainName(chainId: number): string {
   return chainId === 421614 ? 'Arbitrum Sepolia' : 'Base Sepolia';
+}
+
+function formatUserError(rawError: string, intent: ParsedIntent): string {
+  const lower = rawError.toLowerCase();
+
+  if (lower.includes('insufficient funds') || lower.includes('exceeds the balance')) {
+    return `💰 Not enough funds to ${intent.action} ${intent.amount} ${intent.tokenIn}.\n\nYour wallet doesn't have enough ETH to cover the transaction + gas fees.\n\n💡 Tap "Deposit" to add funds to your wallet.`;
+  }
+
+  if (lower.includes('execution reverted')) {
+    if (parseFloat(intent.amount) < 0.0001) {
+      return `⚠️ Amount too small. Uniswap requires a minimum swap amount.\n\n💡 Try a larger amount, e.g.: "Swap 0.001 ETH to USDC"`;
+    }
+    return `⚠️ The swap couldn't be completed — the pool may not have enough liquidity for this pair.\n\n💡 Try a different amount or token pair.`;
+  }
+
+  if (lower.includes('replacement transaction underpriced') || lower.includes('nonce')) {
+    return `⏳ There's a pending transaction. Please wait a moment and try again.`;
+  }
+
+  if (lower.includes('timeout') || lower.includes('network') || lower.includes('fetch failed')) {
+    return `🌐 Network issue — couldn't reach the blockchain. Please try again in a few seconds.`;
+  }
+
+  if (lower.includes('token not found') || lower.includes('unknown token')) {
+    return `❓ Token "${intent.tokenIn || intent.tokenOut}" not recognized.\n\n💡 Supported tokens: ETH, USDC, DAI, WETH`;
+  }
+
+  // Fallback: short generic message, no raw error dump
+  return `❌ Something went wrong with your ${intent.action}. Please try again.\n\n💡 If the issue persists, try a smaller amount or different tokens.`;
 }
