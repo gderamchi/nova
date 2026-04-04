@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'Nova - DeFi Agent',
@@ -12,6 +13,7 @@ export default function MiniAppLayout({
 }) {
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-nova-bg">
+      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       {children}
     </div>
   );
