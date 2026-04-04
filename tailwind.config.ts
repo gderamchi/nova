@@ -25,6 +25,7 @@ const config: Config = {
       animation: {
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
         'typing': 'typing 1.4s steps(3) infinite',
+        'slide-up': 'slide-up 0.3s ease-out',
       },
       keyframes: {
         'pulse-glow': {
@@ -35,6 +36,10 @@ const config: Config = {
           '0%': { content: '"."' },
           '33%': { content: '".."' },
           '66%': { content: '"..."' },
+        },
+        'slide-up': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
         },
       },
     },

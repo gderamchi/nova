@@ -6,28 +6,21 @@ import { WalletStatus } from '@/components/WalletStatus';
 import { DemoMode } from '@/components/DemoMode';
 import { AgentIdentityCard } from '@/components/AgentIdentity';
 import { useTelegram } from '@/hooks/useTelegram';
-import { useSmartAccount } from '@/hooks/useSmartAccount';
 import type { ChatMessage, TransactionPlan } from '@/lib/intent-types';
-import { createAgentIdentity } from '@/lib/ens/identity';
 
 export default function MiniAppPage() {
   const { user, isReady } = useTelegram();
-  const { account } = useSmartAccount();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activePlan, setActivePlan] = useState<TransactionPlan | null>(null);
   const [txHashes, setTxHashes] = useState<string[]>([]);
   const [showDemo, setShowDemo] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
+  const [walletRefreshKey, setWalletRefreshKey] = useState(0);
 
-  const agentIdentity = createAgentIdentity(
-    'nova-agent.eth',
-    (account?.address ?? '0x0000000000000000000000000000000000000000') as `0x${string}`,
-    {
-      description: 'Zero-click cross-chain DeFi agent',
-      skills: ['swap', 'bridge', 'transfer', 'balance', 'nanopay', 'audit', 'memory'],
-    },
-  );
+  const refreshWallet = useCallback(() => {
+    setWalletRefreshKey(k => k + 1);
+  }, []);
 
   const addMessage = useCallback((role: ChatMessage['role'], content: string, extra?: Partial<ChatMessage>) => {
     const msg: ChatMessage = {
@@ -48,7 +41,6 @@ export default function MiniAppPage() {
     setTxHashes([]);
 
     try {
-      // Step 1: Parse intent via API
       const parseRes = await fetch('/api/parse-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,7 +61,6 @@ export default function MiniAppPage() {
       const intent = parseResult.intent;
       addMessage('assistant', parseResult.message);
 
-      // Step 2: Show execution plan (loading state)
       const plan: TransactionPlan = {
         steps: [
           { label: `Parsing: ${intent.action} ${intent.amount} ${intent.tokenIn}`, status: 'complete' },
@@ -84,7 +75,6 @@ export default function MiniAppPage() {
 
       setActivePlan(plan);
 
-      // Step 3: Call real backend orchestrator
       setActivePlan({
         ...plan,
         steps: plan.steps.map((s, i) => ({
@@ -114,18 +104,20 @@ export default function MiniAppPage() {
         setTxHashes(execResult.txHashes);
       }
 
-      // Show real result message with explorer links
       let resultMsg = execResult.message || `${intent.action} completed.`;
       if (execResult.explorerUrls?.length) {
         resultMsg += '\n\n' + execResult.explorerUrls.map((url: string) => `🔗 ${url}`).join('\n');
       }
       addMessage('assistant', resultMsg);
-    } catch (error) {
+
+      // Refresh wallet after successful operation
+      refreshWallet();
+    } catch {
       addMessage('assistant', 'Something went wrong. Please try again.');
     } finally {
       setIsProcessing(false);
     }
-  }, [addMessage]);
+  }, [addMessage, user?.id, refreshWallet]);
 
   if (!isReady) {
     return (
@@ -143,16 +135,23 @@ export default function MiniAppPage() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-nova-surface/60 backdrop-blur-sm border-b border-nova-border">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-nova-surface/60 backdrop-blur-sm border-b border-nova-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-nova-accent to-nova-accent-light flex items-center justify-center">
             <span className="text-sm font-bold text-white">N</span>
           </div>
           <div>
-            <h1 className="text-sm font-bold text-nova-text">Nova</h1>
+            <h1 className="text-sm font-bold text-nova-text">
+              Nova
+              {user?.firstName && (
+                <span className="font-normal text-nova-muted ml-1.5 text-xs">
+                  {user.firstName}
+                </span>
+              )}
+            </h1>
             <p className="text-[10px] text-nova-success flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-nova-success inline-block" />
-              Online
+              Connected
             </p>
           </div>
         </div>
@@ -165,12 +164,17 @@ export default function MiniAppPage() {
       </div>
 
       {/* Wallet status bar */}
-      <WalletStatus />
+      <WalletStatus userId={user?.id} refreshKey={walletRefreshKey} />
 
       {/* Agent info panel */}
       {showAgent && (
         <div className="px-4 py-2 border-b border-nova-border">
-          <AgentIdentityCard identity={agentIdentity} />
+          <AgentIdentityCard identity={{
+            name: 'nova-agent.eth',
+            address: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+            description: 'Zero-click cross-chain DeFi agent',
+            skills: ['swap', 'bridge', 'transfer', 'balance', 'nanopay', 'audit', 'memory'],
+          }} />
         </div>
       )}
 
@@ -193,8 +197,4 @@ export default function MiniAppPage() {
       />
     </>
   );
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
