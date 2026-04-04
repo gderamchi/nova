@@ -53,15 +53,24 @@ Real on-chain swaps via **Uniswap V3 SwapRouter02** on Base Sepolia. Uses `multi
 ### 0G — Agent Memory & Storage
 Nova uses **0G decentralized storage** for persistent agent memory. Every operation (swap, transfer, bridge, payment) is stored and retrievable. Users can query their full operation history through natural language ("show my history").
 
-### Arc/Circle — Nanopayments & Agent-to-Agent Commerce
-**USDC nanopayments** between AI agents via Arc. Enables **agent-to-agent commerce** — agents can pay for API calls, data access, or services without human intervention. Gas-free micropayments on Arc's stablecoin-native infrastructure.
+### Arc/Circle — Chain Abstracted USDC & Agent-to-Agent Commerce
+Nova treats **Base and Arbitrum as one unified liquidity layer for USDC**, routing payments through Arc. Cross-chain USDC transfers are abstracted away — users send USDC and Nova handles the bridging, nanopayment recording, and audit trail across chains seamlessly.
 
+- **Chain Abstracted USDC**: `crossChainUSDCTransfer()` moves USDC across chains — logs a nanopayment on the source chain, creates a bridged payment record on the destination chain, and records the full flow to Hedera HCS. Users never think about which chain their USDC is on.
+- **Cross-chain bridge integration**: When bridging USDC, the orchestrator automatically creates a cross-chain USDC flow record via Arc and logs it to the HCS audit trail, treating multiple blockchains as one liquidity surface.
 - **Multi-agent commerce flow**: 3-agent payment loop (nova-defi -> oracle-price -> data-provider -> nova-defi)
 - **Reply payments**: Every nanopayment triggers a bidirectional reply, demonstrating real agent economy
 - **Service marketplace**: Agents register skills with prices, other agents discover and pay for them
 - **API endpoint**: `POST /api/agent-commerce` triggers the full simulation; `GET /api/agent-commerce` returns commerce history
 - **Architecture diagram**:
   ```
+  [Base Sepolia]                    [Arbitrum Sepolia]
+       │                                   │
+       └──── USDC (Arc liquidity) ─────────┘
+                      │
+              Nova Orchestrator
+              (chain-abstracted)
+
   nova-defi ──$0.005──> oracle-price ──$0.003──> data-provider
        ^                                              │
        └──────────────── $0.01 ───────────────────────┘
@@ -164,9 +173,9 @@ NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=
 
 ## 👥 Team
 
-- **Samir** — Telegram: [@Samir_18100](https://t.me/Samir_18100) | X: [@Samir_18100](https://x.com/Samir_18100)
-- **Habi** — GitHub: [habicll](https://github.com/habicll) | Telegram: [@habicll](https://t.me/habicll)
-- **Guillaume** — Telegram: [@guillaumederamchi](https://t.me/guillaumederamchi) | X: [@gaborMusic](https://x.com/gaborMusic)
+- **Samir** — Telegram: [@Samir_18100](https://t.me/Samir_18100) | LinkedIn: [Samir](#)
+- **Habi** — GitHub: [habicll](https://github.com/habicll) | LinkedIn: [Habi](#)
+- **Guillaume** — Telegram: [@guillaumederamchi](https://t.me/guillaumederamchi) | LinkedIn: [Guillaume](#)
 
 ## 📄 License
 

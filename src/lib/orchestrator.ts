@@ -25,7 +25,7 @@ import { getBridgeQuote } from './bridge/across';
 import { logToHCS, getAuditLog } from './hedera/hcs';
 import type { HCSMessage } from './hedera/hcs';
 import { createNanopayment, getPaymentHistory } from './arc/nanopay';
-import { createReplyPayment } from './arc/agent-commerce';
+import { createReplyPayment, crossChainUSDCTransfer } from './arc/agent-commerce';
 import { mintNovaReward } from './hedera/hts';
 import { setMemory, getMemoryStore } from './openclaw/memory';
 
@@ -386,9 +386,34 @@ async function handleBridge(
 
   const explorerUrls = [getExplorerTxUrl(fromChainId, txHash)];
 
+  // If bridging USDC, record cross-chain USDC flow via Arc and log to HCS
+  let crossChainMsg = '';
+  if (intent.tokenIn.toUpperCase() === 'USDC') {
+    const xchain = await crossChainUSDCTransfer({
+      fromChainId,
+      toChainId,
+      amount: intent.amount,
+      recipient: account.address,
+    });
+
+    await logToHCS({
+      type: 'cross-chain-usdc',
+      from: getChainName(fromChainId),
+      to: getChainName(toChainId),
+      amount: `${intent.amount} USDC`,
+      service: 'Arc/Circle',
+      status: 'bridged',
+      paymentId: xchain.sourcePayment.paymentId,
+      transactionId: txHash,
+      timestamp: Date.now(),
+    });
+
+    crossChainMsg = `\nCross-chain USDC flow recorded via Arc (${xchain.id})`;
+  }
+
   return {
     success: true,
-    message: `Bridging ${intent.amount} ${intent.tokenIn} from ${getChainName(fromChainId)} to ${getChainName(toChainId)}`,
+    message: `Bridging ${intent.amount} ${intent.tokenIn} from ${getChainName(fromChainId)} to ${getChainName(toChainId)}${crossChainMsg}`,
     plan: {
       ...plan,
       steps: [

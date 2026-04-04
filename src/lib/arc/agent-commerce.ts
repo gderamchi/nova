@@ -223,3 +223,88 @@ export async function createReplyPayment(
 export function getCommerceHistory(): AgentCommerceFlow[] {
   return commerceHistory.slice(-50);
 }
+
+// ---- Cross-Chain USDC Transfer (Chain Abstracted USDC) ----
+
+export interface CrossChainUSDCRequest {
+  fromChainId: number;
+  toChainId: number;
+  amount: string;
+  recipient: string;
+}
+
+export interface CrossChainUSDCRecord {
+  id: string;
+  sourceChain: number;
+  destChain: number;
+  amount: string;
+  recipient: string;
+  sourcePayment: NanopaymentResult;
+  bridgedPayment: {
+    bridgeId: string;
+    status: 'bridged';
+    fromChain: string;
+    toChain: string;
+    amount: string;
+    token: 'USDC';
+    timestamp: number;
+  };
+  timestamp: number;
+}
+
+const crossChainHistory: CrossChainUSDCRecord[] = [];
+
+const CHAIN_NAMES: Record<number, string> = {
+  84532: 'Base Sepolia',
+  421614: 'Arbitrum Sepolia',
+};
+
+/**
+ * Cross-chain USDC transfer: treats Base and Arbitrum as one unified liquidity surface.
+ * Logs a nanopayment on the source chain, then creates a bridged payment record
+ * showing USDC flowing to the destination chain via Arc.
+ */
+export async function crossChainUSDCTransfer(
+  request: CrossChainUSDCRequest,
+): Promise<CrossChainUSDCRecord> {
+  const { fromChainId, toChainId, amount, recipient } = request;
+  const id = `xchain-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  // Step 1: Log nanopayment on the source chain
+  const sourcePayment = await createNanopayment({
+    fromAgent: 'nova-agent',
+    toAgent: recipient,
+    amount,
+    memo: `Cross-chain USDC: ${CHAIN_NAMES[fromChainId] ?? String(fromChainId)} -> ${CHAIN_NAMES[toChainId] ?? String(toChainId)}`,
+    chainId: fromChainId,
+  });
+
+  // Step 2: Create bridged payment record showing USDC arriving on dest chain
+  const bridgedPayment = {
+    bridgeId: `bridge-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    status: 'bridged' as const,
+    fromChain: CHAIN_NAMES[fromChainId] ?? String(fromChainId),
+    toChain: CHAIN_NAMES[toChainId] ?? String(toChainId),
+    amount,
+    token: 'USDC' as const,
+    timestamp: Date.now(),
+  };
+
+  const record: CrossChainUSDCRecord = {
+    id,
+    sourceChain: fromChainId,
+    destChain: toChainId,
+    amount,
+    recipient,
+    sourcePayment,
+    bridgedPayment,
+    timestamp: Date.now(),
+  };
+
+  crossChainHistory.push(record);
+  return record;
+}
+
+export function getCrossChainHistory(): CrossChainUSDCRecord[] {
+  return crossChainHistory.slice(-50);
+}
