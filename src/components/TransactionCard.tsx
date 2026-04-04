@@ -10,7 +10,7 @@ interface TransactionCardProps {
 
 export function TransactionCard({ plan, txHashes, chainId }: TransactionCardProps) {
   return (
-    <div className="nova-card space-y-3 max-w-sm">
+    <div className="space-y-3 max-w-sm rounded-2xl p-4" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
       {/* Route header */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-nova-accent/20 flex items-center justify-center">
@@ -104,7 +104,7 @@ function StepIcon({ status }: { status: string }) {
 function RouteIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M2 8H14M10 4L14 8L10 12" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 8H14M10 4L14 8L10 12" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

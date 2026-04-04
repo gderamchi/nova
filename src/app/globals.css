@@ -1,33 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-nova-bg text-nova-text antialiased;
+    @apply bg-nova-bg text-nova-text antialiased font-sans;
+    min-height: 100dvh;
   }
 }
 
 @layer components {
-  .nova-card {
-    @apply bg-nova-surface border border-nova-border rounded-2xl p-4;
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  .nova-button {
-    @apply bg-nova-accent hover:bg-nova-accent/80 text-white font-medium
-      rounded-xl px-4 py-2 transition-all duration-200 active:scale-95;
+  .btn-gradient {
+    background: linear-gradient(135deg, #a855f7, #6366f1);
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+    @apply text-white font-medium transition-all duration-200 active:scale-95;
   }
 
-  .nova-input {
-    @apply bg-nova-surface border border-nova-border rounded-xl px-4 py-3
-      text-nova-text placeholder-nova-muted focus:outline-none
-      focus:border-nova-accent/50 focus:ring-1 focus:ring-nova-accent/30
-      transition-all duration-200;
+  .btn-gradient:hover {
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.5);
+  }
+
+  .btn-outline {
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    @apply text-purple-300 font-medium transition-all duration-200 active:scale-95;
+  }
+
+  .btn-outline:hover {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.6);
+  }
+
+  .input-glass {
+    background: rgba(168, 85, 247, 0.05);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    @apply text-nova-text placeholder-nova-muted transition-all duration-200;
+  }
+
+  .input-glass:focus {
+    border-color: rgba(168, 85, 247, 0.8);
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
+    @apply outline-none;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  }
+
+  .icon-glow {
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
   }
 
   .nova-gradient-text {
-    @apply bg-gradient-to-r from-nova-accent to-nova-accent-light
-      bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-nova-accent to-purple-300 bg-clip-text text-transparent;
   }
 
   .typing-indicator::after {
@@ -41,6 +75,15 @@
     50% { content: '..'; }
     75% { content: '...'; }
   }
+}
+
+/* No-scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Scrollbar styling */

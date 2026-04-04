@@ -11,7 +11,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0f',
+  themeColor: '#0d0a17',
 };
 
 export default function RootLayout({
@@ -21,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen overflow-x-hidden">
+      <body className="min-h-[100dvh] overflow-x-hidden">
         {children}
       </body>
     </html>

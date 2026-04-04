@@ -123,8 +123,8 @@ export default function MiniAppPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-3">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-nova-accent/20 flex items-center justify-center animate-pulse">
-            <span className="text-xl">&#9733;</span>
+          <div className="w-12 h-12 mx-auto rounded-full border-2 border-nova-accent/50 flex items-center justify-center animate-pulse icon-glow">
+            <span className="text-xl text-purple-300">&#9733;</span>
           </div>
           <p className="text-sm text-nova-muted">Initializing Nova...</p>
         </div>
@@ -135,40 +135,38 @@ export default function MiniAppPage() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-nova-surface/60 backdrop-blur-sm border-b border-nova-border">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-nova-accent to-nova-accent-light flex items-center justify-center">
-            <span className="text-sm font-bold text-white">N</span>
+      <div className="glass-panel sticky top-0 z-30">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            {/* Logo circle with glow */}
+            <div className="w-9 h-9 rounded-full border-2 border-nova-accent/60 flex items-center justify-center icon-glow">
+              <span className="text-sm font-bold text-purple-300">N</span>
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-nova-text">Nova</h1>
+              <p className="text-[10px] text-nova-success flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-nova-success inline-block" />
+                Connected
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-nova-text">
-              Nova
-              {user?.firstName && (
-                <span className="font-normal text-nova-muted ml-1.5 text-xs">
-                  {user.firstName}
-                </span>
-              )}
-            </h1>
-            <p className="text-[10px] text-nova-success flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-nova-success inline-block" />
-              Connected
-            </p>
-          </div>
+          <button
+            onClick={() => setShowAgent(!showAgent)}
+            className="btn-outline px-3.5 py-1.5 rounded-full text-xs"
+          >
+            Agent Info
+          </button>
         </div>
-        <button
-          onClick={() => setShowAgent(!showAgent)}
-          className="px-2 py-1 rounded-lg text-[10px] text-nova-muted border border-nova-border hover:border-nova-accent/30 transition-all"
-        >
-          Agent Info
-        </button>
-      </div>
 
-      {/* Wallet status bar */}
-      <WalletStatus userId={user?.id} refreshKey={walletRefreshKey} />
+        {/* Wallet bar with top border */}
+        <div className="border-t border-white/5">
+          <WalletStatus userId={user?.id} refreshKey={walletRefreshKey} />
+        </div>
+      </div>
 
       {/* Agent info panel */}
       {showAgent && (
-        <div className="px-4 py-2 border-b border-nova-border">
+        <div className="px-4 py-2 glass-panel">
           <AgentIdentityCard identity={{
             name: 'nova-agent.eth',
             address: '0x0000000000000000000000000000000000000000' as `0x${string}`,

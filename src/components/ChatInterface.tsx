@@ -64,46 +64,49 @@ export function ChatInterface({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick actions */}
-      <div className="px-4 pb-2">
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {QUICK_ACTIONS.map(action => (
-            <button
-              key={action.label}
-              onClick={() => {
-                setInput(action.command);
-                inputRef.current?.focus();
-              }}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full bg-nova-surface border border-nova-border text-[11px] text-nova-muted hover:text-nova-text hover:border-nova-accent/30 transition-all"
-            >
-              {action.label}
-            </button>
-          ))}
+      {/* Footer with gradient fade */}
+      <div className="sticky bottom-0" style={{ background: 'linear-gradient(to bottom, transparent, #0d0a17 30%)' }}>
+        {/* Quick actions */}
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+            {QUICK_ACTIONS.map(action => (
+              <button
+                key={action.label}
+                onClick={() => {
+                  setInput(action.command);
+                  inputRef.current?.focus();
+                }}
+                className="flex-shrink-0 btn-outline px-3.5 py-1.5 rounded-full text-[11px]"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Input area */}
-      <form onSubmit={handleSubmit} className="px-4 pb-4">
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Type a DeFi command..."
-            className="nova-input flex-1 text-sm"
-            disabled={isProcessing}
-            autoComplete="off"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isProcessing}
-            className="nova-button px-4 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <SendIcon />
-          </button>
-        </div>
-      </form>
+        {/* Input area */}
+        <form onSubmit={handleSubmit} className="px-4 pb-4">
+          <div className="relative flex items-center">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Type a DeFi command..."
+              className="input-glass w-full rounded-2xl px-4 py-3 pr-12 text-sm"
+              disabled={isProcessing}
+              autoComplete="off"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isProcessing}
+              className="absolute right-1.5 btn-gradient w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <SendIcon />
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -116,11 +119,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div
         className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
           isUser
-            ? 'bg-nova-accent text-white rounded-br-sm'
+            ? 'btn-gradient rounded-br-sm'
             : message.role === 'system'
-              ? 'bg-nova-warning/10 border border-nova-warning/20 text-nova-warning rounded-bl-sm'
-              : 'bg-nova-surface border border-nova-border text-nova-text rounded-bl-sm'
+              ? 'rounded-bl-sm text-nova-warning'
+              : 'rounded-bl-sm text-nova-text'
         }`}
+        style={
+          isUser
+            ? undefined
+            : message.role === 'system'
+              ? { background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.15)' }
+              : { background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }
+        }
       >
         <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
         <p className={`text-[10px] mt-1 ${isUser ? 'text-white/60' : 'text-nova-muted'}`}>
@@ -134,11 +144,11 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="bg-nova-surface border border-nova-border rounded-2xl rounded-bl-sm px-4 py-3">
+      <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
         <div className="flex gap-1">
-          <span className="w-2 h-2 rounded-full bg-nova-muted animate-bounce [animation-delay:0ms]" />
-          <span className="w-2 h-2 rounded-full bg-nova-muted animate-bounce [animation-delay:150ms]" />
-          <span className="w-2 h-2 rounded-full bg-nova-muted animate-bounce [animation-delay:300ms]" />
+          <span className="w-2 h-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:0ms]" />
+          <span className="w-2 h-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:150ms]" />
+          <span className="w-2 h-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:300ms]" />
         </div>
       </div>
     </div>
@@ -147,17 +157,27 @@ function TypingIndicator() {
 
 function WelcomeMessage() {
   return (
-    <div className="text-center py-8 space-y-4">
-      <div className="w-16 h-16 mx-auto rounded-2xl bg-nova-accent/20 flex items-center justify-center animate-pulse-glow">
-        <span className="text-3xl">&#9733;</span>
+    <div className="flex flex-col items-center justify-center py-16 space-y-6">
+      {/* Decorative star icon with glow rings */}
+      <div className="relative">
+        {/* Outer ring */}
+        <div className="absolute inset-0 w-24 h-24 -m-4 rounded-full border border-purple-500/10 animate-ring-pulse" />
+        {/* Middle ring */}
+        <div className="absolute inset-0 w-20 h-20 -m-2 rounded-full border border-purple-500/20 animate-ring-pulse [animation-delay:1s]" />
+        {/* Icon circle */}
+        <div className="relative w-16 h-16 rounded-full border-2 border-nova-accent/50 flex items-center justify-center icon-glow">
+          <span className="text-3xl text-purple-300">&#9733;</span>
+        </div>
       </div>
-      <div>
-        <h2 className="text-lg font-bold nova-gradient-text">Welcome to Nova</h2>
-        <p className="text-sm text-nova-muted mt-1">
+
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-nova-text text-glow">Welcome to Nova</h2>
+        <p className="text-sm text-nova-muted mt-2">
           Your zero-click DeFi agent. Just type what you want.
         </p>
       </div>
-      <div className="space-y-1 text-xs text-nova-muted">
+
+      <div className="space-y-2 text-xs text-nova-muted/60">
         <p>&ldquo;Swap 0.1 ETH to USDC&rdquo;</p>
         <p>&ldquo;Bridge 100 USDC from Base to Arbitrum&rdquo;</p>
         <p>&ldquo;Check my balance&rdquo;</p>
