@@ -21,6 +21,10 @@ import { getExplorerTxUrl, getTokenAddress } from './chains';
 import { getSwapQuote } from './uniswap/quote';
 import { resolveToken } from './uniswap/tokens';
 import { getBridgeQuote } from './bridge/across';
+import { logToHCS, getAuditLog } from './hedera/hcs';
+import type { HCSMessage } from './hedera/hcs';
+import { createNanopayment, getPaymentHistory } from './arc/nanopay';
+import { setMemory, getMemoryStore } from './openclaw/memory';
 
 // Uniswap V3 SwapRouter02 on Base Sepolia
 const SWAP_ROUTER: `0x${string}` = '0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4';
@@ -104,15 +108,30 @@ export async function orchestrate(
   const intent = intentResult.intent;
 
   try {
+    let result: OrchestratorResult;
+
     switch (intent.action) {
       case 'swap':
-        return await handleSwap(intent, sender);
+        result = await handleSwap(intent, sender);
+        break;
       case 'bridge':
-        return await handleBridge(intent, sender);
+        result = await handleBridge(intent, sender);
+        break;
       case 'transfer':
-        return await handleTransfer(intent, sender);
+        result = await handleTransfer(intent, sender);
+        break;
       case 'balance':
-        return await handleBalance(intent, sender);
+        result = await handleBalance(intent, sender);
+        break;
+      case 'audit':
+        result = await handleAudit(intent, sender);
+        break;
+      case 'nanopay':
+        result = await handleNanopay(intent, sender);
+        break;
+      case 'memory':
+        result = await handleMemory(intent, sender);
+        break;
       default:
         return {
           success: false,
@@ -121,6 +140,15 @@ export async function orchestrate(
           txHashes: [],
         };
     }
+
+    // Log successful on-chain operations to HCS audit trail and 0G memory
+    if (result.success && ['swap', 'bridge', 'transfer', 'balance'].includes(intent.action)) {
+      const details = `${intent.amount} ${intent.tokenIn}${intent.tokenOut ? ' -> ' + intent.tokenOut : ''}`;
+      logOperationToHCS(intent.action, sender, details, result.txHashes[0]);
+      storeOperationMemory(sender, intent.action, `${details} (${result.txHashes[0] ?? 'no-tx'})`);
+    }
+
+    return result;
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return {
@@ -497,6 +525,145 @@ async function handleBalance(
     },
     txHashes: [],
   };
+}
+
+// --------------- AUDIT LOG (HCS) ---------------
+
+async function handleAudit(
+  _intent: ParsedIntent,
+  sender: `0x${string}`,
+): Promise<OrchestratorResult> {
+  const log = getAuditLog(20);
+  const entries = log.map(entry => {
+    try {
+      const msg = JSON.parse(entry.message);
+      return `[${new Date(entry.timestamp).toLocaleTimeString()}] ${msg.type}: ${msg.amount ?? ''} ${msg.service ?? msg.type} - ${msg.status}`;
+    } catch {
+      return `[${new Date(entry.timestamp).toLocaleTimeString()}] ${entry.message}`;
+    }
+  });
+
+  const message = log.length === 0
+    ? 'No operations recorded yet. Your audit trail will appear here after you execute swaps, transfers, or other operations.'
+    : `Audit Trail (${log.length} entries, Hedera HCS topic ${log[0].topicId}):\n\n${entries.join('\n')}`;
+
+  return {
+    success: true,
+    message,
+    plan: {
+      steps: [{ label: `Retrieved ${log.length} audit entries`, status: 'complete' }],
+      estimatedGas: '0',
+      estimatedTime: '~1 second',
+      route: 'Hedera Consensus Service audit log',
+    },
+    txHashes: [],
+  };
+}
+
+// --------------- NANOPAY (Arc/Circle) ---------------
+
+async function handleNanopay(
+  intent: ParsedIntent,
+  sender: `0x${string}`,
+): Promise<OrchestratorResult> {
+  const recipient = intent.recipient ?? 'unknown-agent';
+  const amount = intent.amount && intent.amount !== '0' ? intent.amount : '0.01';
+
+  const result = await createNanopayment({
+    fromAgent: sender,
+    toAgent: recipient,
+    amount,
+    memo: `Nanopayment via Nova: ${intent.raw}`,
+    chainId: 84532,
+  });
+
+  // Log to HCS audit trail
+  await logToHCS({
+    type: 'nanopay',
+    from: sender,
+    to: recipient,
+    amount,
+    service: 'Arc/Circle',
+    status: result.success ? 'success' : 'failed',
+    paymentId: result.paymentId,
+    timestamp: Date.now(),
+  });
+
+  // Store in agent memory
+  storeOperationMemory(sender, 'nanopay', `Paid ${amount} USDC to ${recipient} (${result.paymentId})`);
+
+  if (!result.success) {
+    return {
+      success: false,
+      message: `Nanopayment failed: ${result.error}`,
+      plan: null,
+      txHashes: [],
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    message: `Nanopayment sent: ${amount} USDC to ${recipient}\nPayment ID: ${result.paymentId}\nFee: ${result.fee} USDC`,
+    plan: {
+      steps: [
+        { label: `Created nanopayment channel`, status: 'complete' },
+        { label: `Sent ${amount} USDC to ${recipient}`, status: 'complete' },
+      ],
+      estimatedGas: '0',
+      estimatedTime: '~1 second',
+      route: `Nanopayment via Arc/Circle`,
+    },
+    txHashes: result.txHash ? [result.txHash] : [],
+  };
+}
+
+// --------------- MEMORY (0G Storage) ---------------
+
+async function handleMemory(
+  _intent: ParsedIntent,
+  sender: `0x${string}`,
+): Promise<OrchestratorResult> {
+  const store = getMemoryStore(sender);
+  const entries = Array.from(store.entries.values())
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 20);
+
+  const message = entries.length === 0
+    ? 'No operation history yet. Your history will appear here after you execute swaps, transfers, or payments.'
+    : `Operation History (${entries.length} entries, 0G Storage):\n\n${entries.map(e => `[${new Date(e.timestamp).toLocaleTimeString()}] ${e.value}`).join('\n')}`;
+
+  return {
+    success: true,
+    message,
+    plan: {
+      steps: [{ label: `Retrieved ${entries.length} memory entries`, status: 'complete' }],
+      estimatedGas: '0',
+      estimatedTime: '~1 second',
+      route: '0G decentralized storage',
+    },
+    txHashes: [],
+  };
+}
+
+// --------------- Post-operation logging ---------------
+
+function logOperationToHCS(action: string, sender: string, details: string, txHash?: string): void {
+  logToHCS({
+    type: action,
+    from: sender,
+    to: 'protocol',
+    amount: details,
+    service: action === 'swap' ? 'Uniswap V3' : action === 'bridge' ? 'Across' : 'Nova',
+    status: 'success',
+    transactionId: txHash,
+    timestamp: Date.now(),
+  }).catch(() => { /* fire and forget */ });
+}
+
+function storeOperationMemory(sender: string, action: string, details: string): void {
+  const key = `op-${Date.now()}`;
+  setMemory(sender, key, `[${action}] ${details}`);
 }
 
 // --------------- Helpers ---------------

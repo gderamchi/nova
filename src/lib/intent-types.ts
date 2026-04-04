@@ -1,4 +1,4 @@
-export type IntentAction = 'swap' | 'bridge' | 'transfer' | 'balance' | 'approve' | 'wrap' | 'unknown';
+export type IntentAction = 'swap' | 'bridge' | 'transfer' | 'balance' | 'approve' | 'wrap' | 'audit' | 'nanopay' | 'memory' | 'unknown';
 
 export interface ParsedIntent {
   action: IntentAction;

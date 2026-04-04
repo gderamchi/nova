@@ -25,7 +25,7 @@ export default function MiniAppPage() {
     (account?.address ?? '0x0000000000000000000000000000000000000000') as `0x${string}`,
     {
       description: 'Zero-click cross-chain DeFi agent',
-      skills: ['swap', 'bridge', 'transfer', 'balance', 'nanopay'],
+      skills: ['swap', 'bridge', 'transfer', 'balance', 'nanopay', 'audit', 'memory'],
     },
   );
 

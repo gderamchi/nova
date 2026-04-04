@@ -34,6 +34,24 @@ const DEMO_STEPS: DemoStep[] = [
     command: 'Send 10 USDC to vitalik.eth',
     expectedAction: 'transfer',
   },
+  {
+    title: '5. Nanopayment',
+    description: 'Send a micro-payment to another agent via Arc/Circle',
+    command: 'Pay 0.01 USDC to agent-x',
+    expectedAction: 'nanopay',
+  },
+  {
+    title: '6. Audit Trail',
+    description: 'View immutable operation log on Hedera Consensus Service',
+    command: 'Show my audit log',
+    expectedAction: 'audit',
+  },
+  {
+    title: '7. Operation History',
+    description: 'View agent memory stored on 0G decentralized storage',
+    command: 'Show my history',
+    expectedAction: 'memory',
+  },
 ];
 
 interface DemoModeProps {
