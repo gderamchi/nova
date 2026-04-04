@@ -111,6 +111,33 @@ export async function orchestrate(
 
   const intent = intentResult.intent;
 
+  // === SERVER-SIDE GUARDRAILS (can't be bypassed by prompt injection) ===
+  const amount = parseFloat(intent.amount || '0');
+
+  // Block absurdly large amounts
+  if (amount > 10 && intent.tokenIn?.toUpperCase() === 'ETH') {
+    return { success: false, message: '⛔ Safety limit: max 10 ETH per transaction on testnet.', plan: null, txHashes: [] };
+  }
+  if (amount > 25000 && ['USDC', 'USDT', 'DAI'].includes(intent.tokenIn?.toUpperCase())) {
+    return { success: false, message: '⛔ Safety limit: max 25,000 stablecoins per transaction.', plan: null, txHashes: [] };
+  }
+
+  // Block nonsensical swaps (same token)
+  if (intent.action === 'swap' && intent.tokenIn?.toUpperCase() === intent.tokenOut?.toUpperCase() && intent.tokenIn) {
+    return { success: false, message: '⚠️ Can\'t swap a token for itself. Try a different pair.', plan: null, txHashes: [] };
+  }
+
+  // Block transfers with no recipient
+  if (intent.action === 'transfer' && !intent.recipient) {
+    return { success: false, message: '⚠️ Please specify a recipient address. E.g.: "Send 0.01 ETH to 0x..."', plan: null, txHashes: [] };
+  }
+
+  // Block low confidence intents for financial actions
+  if (['swap', 'bridge', 'transfer', 'nanopay'].includes(intent.action) && intent.confidence < 0.5) {
+    return { success: false, message: '🤔 I\'m not sure I understood correctly. Can you rephrase? E.g.: "Swap 0.01 ETH to USDC"', plan: null, txHashes: [] };
+  }
+  // === END GUARDRAILS ===
+
   try {
     let result: OrchestratorResult;
 

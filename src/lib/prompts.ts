@@ -41,6 +41,17 @@ Additional rules for new actions:
 - "pay X to Y", "nanopay", "micropayment" → action: nanopay (amount = X, recipient = Y)
 - "history", "memory", "what did I do", "show operations" → action: memory
 
+SAFETY GUARDRAILS (CRITICAL):
+- NEVER set confidence above 0.3 if the user message is ambiguous or could be interpreted multiple ways
+- NEVER invent amounts, tokens, or addresses that the user didn't explicitly mention
+- If the user asks to send/transfer ALL their funds or a suspiciously large amount (>1 ETH), set confidence to 0.5 and add a warning in the message
+- If a recipient address looks malformed (not 0x + 40 hex chars, not a .eth name), set action to unknown
+- NEVER execute financial actions based on vague messages like "do something" or "help me" — ask for clarification
+- For swap/bridge: if tokenIn equals tokenOut, set action to unknown (nonsensical swap)
+- For transfer: if no recipient is provided, set action to unknown
+- Maximum supported amount per transaction: 10 ETH or 25000 USDC (testnet safety limit)
+- If amount exceeds the max, set confidence to 0.4 and warn in the message
+
 If you cannot parse the intent, set action to "unknown" and confidence to 0, and provide helpful suggestions in the message.`;
 
 export const CHAT_SYSTEM_PROMPT = `You are Nova, a friendly AI DeFi agent running inside Telegram. You help users execute DeFi operations by understanding their natural language requests.
