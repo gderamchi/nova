@@ -24,8 +24,9 @@ import { resolveToken } from './uniswap/tokens';
 import { getBridgeQuote } from './bridge/across';
 import { logToHCS, getAuditLog } from './hedera/hcs';
 import type { HCSMessage } from './hedera/hcs';
-import { createNanopayment, getPaymentHistory } from './arc/nanopay';
+import { createNanopayment } from './arc/nanopay';
 import { createReplyPayment, crossChainUSDCTransfer } from './arc/agent-commerce';
+import { getUSDCBalance, USDC_BASE_SEPOLIA } from './circle/gateway';
 import { mintNovaReward } from './hedera/hts';
 import { setMemory, getMemoryStore } from './openclaw/memory';
 
@@ -158,7 +159,7 @@ export async function orchestrate(
         result = await handleAudit(intent, sender);
         break;
       case 'nanopay':
-        result = await handleNanopay(intent, sender);
+        result = await handleNanopay(intent, sender, userId);
         break;
       case 'memory':
         result = await handleMemory(intent, sender);
@@ -173,7 +174,7 @@ export async function orchestrate(
     }
 
     // Log successful on-chain operations to HCS audit trail and 0G memory
-    if (result.success && ['swap', 'bridge', 'transfer', 'balance'].includes(intent.action)) {
+    if (result.success && ['swap', 'bridge', 'transfer', 'balance', 'nanopay'].includes(intent.action)) {
       const details = `${intent.amount} ${intent.tokenIn}${intent.tokenOut ? ' -> ' + intent.tokenOut : ''}`;
       logOperationToHCS(intent.action, sender, details, result.txHashes[0]);
       storeOperationMemory(sender, intent.action, `${details} (${result.txHashes[0] ?? 'no-tx'})`);
@@ -629,32 +630,53 @@ async function handleAudit(
 async function handleNanopay(
   intent: ParsedIntent,
   sender: `0x${string}`,
+  userId?: number,
 ): Promise<OrchestratorResult> {
+  const chainId = 84532; // Base Sepolia
   const recipient = intent.recipient ?? 'unknown-agent';
   const amount = intent.amount && intent.amount !== '0' ? intent.amount : '0.01';
 
-  const result = await createNanopayment({
-    fromAgent: sender,
-    toAgent: recipient,
-    amount,
-    memo: `Nanopayment via Nova: ${intent.raw}`,
-    chainId: 84532,
-  });
+  // Use the treasury account for the Gateway deposit (it holds the USDC)
+  const walletClient = getWalletClientForUser(undefined, chainId);
+  const publicClient = getServerPublicClient(chainId);
+  const account = getAccountForUser(undefined);
+
+  // Check on-chain USDC balance
+  const usdcBalance = await getUSDCBalance(publicClient, account.address);
+
+  const result = await createNanopayment(
+    {
+      fromAgent: sender,
+      toAgent: recipient,
+      amount,
+      memo: `Nanopayment via Nova: ${intent.raw}`,
+      chainId,
+    },
+    // Pass on-chain context so nanopay can do a real Gateway deposit
+    {
+      walletClient,
+      publicClient,
+      account,
+    },
+  );
+
+  const isRealTx = result.mode === 'gateway';
 
   // Log to HCS audit trail
   await logToHCS({
     type: 'nanopay',
     from: sender,
     to: recipient,
-    amount,
-    service: 'Arc/Circle',
-    status: result.success ? 'success' : 'failed',
+    amount: `${amount} USDC`,
+    service: 'Circle Gateway',
+    status: result.success ? (isRealTx ? 'deposited' : 'demo') : 'failed',
     paymentId: result.paymentId,
+    transactionId: result.txHash,
     timestamp: Date.now(),
   });
 
   // Store in agent memory
-  storeOperationMemory(sender, 'nanopay', `Paid ${amount} USDC to ${recipient} (${result.paymentId})`);
+  storeOperationMemory(sender, 'nanopay', `Paid ${amount} USDC to ${recipient} (${result.paymentId})${isRealTx ? ' [on-chain]' : ' [demo]'}`);
 
   if (!result.success) {
     return {
@@ -664,6 +686,18 @@ async function handleNanopay(
       txHashes: [],
       error: result.error,
     };
+  }
+
+  // Build explorer URLs for real txs
+  const txHashes: string[] = [];
+  const explorerUrls: string[] = [];
+  if (result.approveTxHash) {
+    txHashes.push(result.approveTxHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, result.approveTxHash));
+  }
+  if (result.txHash) {
+    txHashes.push(result.txHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, result.txHash));
   }
 
   // Simulate agent-to-agent commerce: receiving agent sends a reply payment
@@ -678,20 +712,33 @@ async function handleNanopay(
     ? `\nReply payment: ${recipient} sent 0.001 USDC back (agent-to-agent commerce)`
     : '';
 
+  const modeLabel = isRealTx
+    ? `Circle Gateway deposit (real on-chain tx)`
+    : `Demo mode (wallet has ${usdcBalance.formatted} USDC)`;
+
+  const steps: TransactionStep[] = isRealTx
+    ? [
+        { label: `Approved USDC spend for Gateway`, status: 'complete', txHash: result.approveTxHash },
+        { label: `Deposited ${amount} USDC to Circle Gateway`, status: 'complete', txHash: result.txHash },
+        { label: `Reply payment received from ${recipient}`, status: 'complete' },
+      ]
+    : [
+        { label: `Created nanopayment channel (demo)`, status: 'complete' },
+        { label: `Sent ${amount} USDC to ${recipient} (simulated)`, status: 'complete' },
+        { label: `Reply payment received from ${recipient}`, status: 'complete' },
+      ];
+
   return {
     success: true,
-    message: `Nanopayment sent: ${amount} USDC to ${recipient}\nPayment ID: ${result.paymentId}\nFee: ${result.fee} USDC${replyMsg}`,
+    message: `Nanopayment sent: ${amount} USDC to ${recipient}\nMode: ${modeLabel}\nPayment ID: ${result.paymentId}${replyMsg}`,
     plan: {
-      steps: [
-        { label: `Created nanopayment channel`, status: 'complete' },
-        { label: `Sent ${amount} USDC to ${recipient}`, status: 'complete' },
-        { label: `Reply payment received from ${recipient}`, status: 'complete' },
-      ],
-      estimatedGas: '0',
-      estimatedTime: '~1 second',
-      route: `Nanopayment via Arc/Circle (agent-to-agent)`,
+      steps,
+      estimatedGas: isRealTx ? '~150,000' : '0',
+      estimatedTime: isRealTx ? '~15 seconds' : '~1 second',
+      route: `Nanopayment via Circle Gateway`,
     },
-    txHashes: result.txHash ? [result.txHash] : [],
+    txHashes,
+    explorerUrls,
   };
 }
 

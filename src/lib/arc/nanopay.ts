@@ -1,10 +1,19 @@
 /**
  * Arc/Circle USDC Nanopayment Layer
- * Enables micro-payments between agents using USDC on supported chains
+ * Enables micro-payments between agents using USDC on supported chains.
+ *
+ * Real mode: approve + deposit USDC into Circle Gateway on Base Sepolia.
+ * Demo fallback: in-memory ledger when no USDC balance or no wallet provided.
  */
 
-const ARC_API_KEY = process.env.NEXT_PUBLIC_ARC_API_KEY ?? 'PLACEHOLDER_REPLACE_ME';
-const ARC_API_BASE = 'https://api.arc.net/v1';
+import type { WalletClient, PublicClient } from 'viem';
+import {
+  approveGateway,
+  depositToGateway,
+  getUSDCBalance,
+} from '../circle/gateway';
+import { getGasOverrides } from '../server-account';
+import { getNonceForAccount } from '../user-wallets';
 
 export interface NanopaymentRequest {
   fromAgent: string;
@@ -14,14 +23,23 @@ export interface NanopaymentRequest {
   chainId: number;
 }
 
+/** Extended request that carries wallet/public clients for real on-chain deposits. */
+export interface NanopaymentOnChainRequest extends NanopaymentRequest {
+  walletClient: WalletClient;
+  publicClient: PublicClient;
+  account: ReturnType<typeof import('viem/accounts').privateKeyToAccount>;
+}
+
 export interface NanopaymentResult {
   success: boolean;
   paymentId: string;
   txHash?: string;
+  approveTxHash?: string;
   amount: string;
   fee: string;
   timestamp: number;
   error?: string;
+  mode: 'gateway' | 'demo';
 }
 
 export interface PaymentChannel {
@@ -38,52 +56,75 @@ export interface PaymentChannel {
 const paymentLedger: NanopaymentResult[] = [];
 const channelBalances = new Map<string, number>();
 
+/**
+ * Create a USDC nanopayment.
+ *
+ * If an `onChain` parameter is provided with wallet/public clients AND the
+ * sender has enough USDC, this performs a real Circle Gateway deposit
+ * (approve + deposit). Otherwise falls back to the demo ledger.
+ */
 export async function createNanopayment(
   request: NanopaymentRequest,
+  onChain?: {
+    walletClient: WalletClient;
+    publicClient: PublicClient;
+    account: ReturnType<typeof import('viem/accounts').privateKeyToAccount>;
+  },
 ): Promise<NanopaymentResult> {
   const paymentId = `pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   try {
-    // Attempt to use Arc API for real payment
-    if (ARC_API_KEY && ARC_API_KEY !== 'PLACEHOLDER_REPLACE_ME' && !ARC_API_KEY.includes('PLACEHOLDER')) { try {
-      const response = await fetch(`${ARC_API_BASE}/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${ARC_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: request.fromAgent,
-          to: request.toAgent,
-          amount: request.amount,
-          currency: 'USDC',
-          chainId: request.chainId,
-          memo: request.memo,
-        }),
-      });
+    // ── Real on-chain path: Circle Gateway approve + deposit ──
+    if (onChain) {
+      const { walletClient, publicClient, account } = onChain;
+      const usdcBalance = await getUSDCBalance(publicClient, account.address);
+      const requestedRaw = BigInt(Math.floor(parseFloat(request.amount) * 1e6));
 
-      if (response.ok) {
-        const data = await response.json();
+      if (usdcBalance.raw >= requestedRaw && requestedRaw > BigInt(0)) {
+        const gas = await getGasOverrides(request.chainId);
+
+        // 1. Approve Gateway Wallet to spend USDC
+        const approveNonce = await getNonceForAccount(request.chainId, account.address);
+        const approveTxHash = await approveGateway(
+          walletClient, publicClient, request.amount, gas, approveNonce, account,
+        );
+
+        // 2. Deposit USDC into Gateway unified balance
+        const depositNonce = await getNonceForAccount(request.chainId, account.address);
+        const depositTxHash = await depositToGateway(
+          walletClient, publicClient, request.amount, gas, depositNonce, account,
+        );
+
         const result: NanopaymentResult = {
           success: true,
-          paymentId: data.id ?? paymentId,
-          txHash: data.txHash,
+          paymentId,
+          txHash: depositTxHash,
+          approveTxHash,
           amount: request.amount,
-          fee: data.fee ?? '0.0001',
+          fee: '0',
           timestamp: Date.now(),
+          mode: 'gateway',
         };
         paymentLedger.push(result);
+
+        // Update channel balance
+        const channelKey = `${request.fromAgent}-${request.toAgent}`;
+        const currentBalance = channelBalances.get(channelKey) ?? 0;
+        channelBalances.set(channelKey, currentBalance + parseFloat(request.amount));
+
         return result;
       }
-    } catch (_arcError) { /* fall through to demo mode */ } }
+      // If insufficient USDC, fall through to demo mode
+    }
 
-    // Simulated payment for demo
+    // ── Demo fallback: in-memory simulated payment ──
     const result: NanopaymentResult = {
       success: true,
       paymentId,
       amount: request.amount,
       fee: '0.0001',
       timestamp: Date.now(),
+      mode: 'demo',
     };
 
     // Update channel balance
@@ -101,6 +142,7 @@ export async function createNanopayment(
       fee: '0',
       timestamp: Date.now(),
       error: error instanceof Error ? error.message : 'Payment failed',
+      mode: 'demo',
     };
   }
 }
