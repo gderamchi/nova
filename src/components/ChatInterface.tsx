@@ -167,8 +167,8 @@ function WelcomeMessage() {
         {/* Middle ring */}
         <div className="absolute inset-0 w-20 h-20 -m-2 rounded-full border border-purple-500/20 animate-ring-pulse [animation-delay:1s]" />
         {/* Icon circle */}
-        <div className="relative w-16 h-16 rounded-full border-2 border-nova-accent/50 flex items-center justify-center icon-glow">
-          <span className="text-3xl text-purple-300">&#9733;</span>
+        <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-nova-accent/50 icon-glow">
+          <img src="/nova-logo.png" alt="Nova" className="w-full h-full object-cover" style={{ mixBlendMode: 'lighten' }} />
         </div>
       </div>
 

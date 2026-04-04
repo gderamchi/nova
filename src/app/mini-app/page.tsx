@@ -123,8 +123,8 @@ export default function MiniAppPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-3">
-          <div className="w-12 h-12 mx-auto rounded-full border-2 border-nova-accent/50 flex items-center justify-center animate-pulse icon-glow">
-            <span className="text-xl text-purple-300">&#9733;</span>
+          <div className="w-12 h-12 mx-auto rounded-full overflow-hidden border-2 border-nova-accent/50 animate-pulse icon-glow">
+            <img src="/nova-logo.png" alt="Nova" className="w-full h-full object-cover" style={{ mixBlendMode: 'lighten' }} />
           </div>
           <p className="text-sm text-nova-muted">Initializing Nova...</p>
         </div>
@@ -138,9 +138,9 @@ export default function MiniAppPage() {
       <div className="glass-panel sticky top-0 z-30">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            {/* Logo circle with glow */}
-            <div className="w-9 h-9 rounded-full border-2 border-nova-accent/60 flex items-center justify-center icon-glow">
-              <span className="text-sm font-bold text-purple-300">N</span>
+            {/* Logo with glow */}
+            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-nova-accent/60 icon-glow">
+              <img src="/nova-logo.png" alt="Nova" className="w-full h-full object-cover" style={{ mixBlendMode: 'lighten' }} />
             </div>
             <div>
               <h1 className="text-base font-semibold text-nova-text">Nova</h1>
