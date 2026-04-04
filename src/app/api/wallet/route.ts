@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { formatEther } from 'viem';
-import { getUserAccount } from '@/lib/user-wallets';
+import { getUserAccount, ensureUserFunded } from '@/lib/user-wallets';
 import { getServerAccount, getServerPublicClient } from '@/lib/server-account';
 
 export async function GET(request: NextRequest) {
@@ -12,6 +12,13 @@ export async function GET(request: NextRequest) {
       : getServerAccount();
 
     const address = account.address;
+
+    // Auto-fund new users on first wallet check
+    if (userId) {
+      try {
+        await ensureUserFunded(Number(userId), 84532);
+      } catch { /* fund silently fails if treasury empty */ }
+    }
 
     const [baseBal, arbBal] = await Promise.all([
       getServerPublicClient(84532)
