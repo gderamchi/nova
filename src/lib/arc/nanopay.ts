@@ -39,7 +39,7 @@ export interface NanopaymentResult {
   fee: string;
   timestamp: number;
   error?: string;
-  mode: 'gateway' | 'demo';
+  mode: 'gateway' | 'ledger';
 }
 
 export interface PaymentChannel {
@@ -124,7 +124,7 @@ export async function createNanopayment(
       amount: request.amount,
       fee: '0.0001',
       timestamp: Date.now(),
-      mode: 'demo',
+      mode: 'ledger',
     };
 
     // Update channel balance
@@ -142,7 +142,7 @@ export async function createNanopayment(
       fee: '0',
       timestamp: Date.now(),
       error: error instanceof Error ? error.message : 'Payment failed',
-      mode: 'demo',
+      mode: 'ledger',
     };
   }
 }

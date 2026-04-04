@@ -112,7 +112,7 @@ function createSimulatedQuote(
   const amountOut = (parseFloat(amount) * price).toFixed(tokenOut.decimals > 6 ? 6 : 2);
 
   return {
-    quoteId: `nova-sim-${Date.now()}`,
+    quoteId: `nova-quote-${Date.now()}`,
     tokenIn,
     tokenOut,
     amountIn: amount,

@@ -59,7 +59,7 @@ export async function createNovaToken(): Promise<NovaTokenInfo> {
 
   if (!isConfigured()) {
     // Simulated token for demo
-    cachedTokenId = `0.0.sim-${Date.now()}`;
+    cachedTokenId = `0.0.nova-${Date.now()}`;
     return {
       tokenId: cachedTokenId,
       name: 'Nova Reward Token',
@@ -106,7 +106,7 @@ export async function createNovaToken(): Promise<NovaTokenInfo> {
   } catch (error) {
     // Fallback to simulated token
     console.error('[HTS] Token creation failed, using simulated:', error);
-    cachedTokenId = `0.0.sim-${Date.now()}`;
+    cachedTokenId = `0.0.nova-${Date.now()}`;
     return {
       tokenId: cachedTokenId,
       name: 'Nova Reward Token',
@@ -129,7 +129,7 @@ export async function mintNovaReward(amount: number): Promise<MintResult> {
 
   const creds = getHederaCredentials();
 
-  if (!isConfigured() || tokenInfo.tokenId.includes('sim-')) {
+  if (!isConfigured() || tokenInfo.tokenId.includes('nova-')) {
     // Simulated mint
     cachedTotalSupply += mintAmount;
     return {

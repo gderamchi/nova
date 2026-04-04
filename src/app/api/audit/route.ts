@@ -8,7 +8,7 @@ export async function GET() {
     const log = getAuditLog(50);
     return NextResponse.json({
       success: true,
-      topicId: log[0]?.topicId ?? '0.0.nova-audit',
+      topicId: log[0]?.topicId ?? '0.0.8504799',
       count: log.length,
       entries: log.map(entry => ({
         sequenceNumber: entry.sequenceNumber,

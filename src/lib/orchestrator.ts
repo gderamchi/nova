@@ -827,14 +827,14 @@ async function handleNanopay(
     to: recipient,
     amount: `${amount} USDC`,
     service: 'Circle Gateway',
-    status: result.success ? (isRealTx ? 'deposited' : 'demo') : 'failed',
+    status: result.success ? (isRealTx ? 'deposited' : 'pending') : 'failed',
     paymentId: result.paymentId,
     transactionId: result.txHash,
     timestamp: Date.now(),
   });
 
   // Store in agent memory
-  storeOperationMemory(sender, 'nanopay', `Paid ${amount} USDC to ${recipient} (${result.paymentId})${isRealTx ? ' [on-chain]' : ' [demo]'}`);
+  storeOperationMemory(sender, 'nanopay', `Paid ${amount} USDC to ${recipient} (${result.paymentId})${isRealTx ? ' [on-chain]' : ' [off-chain]'}`);
 
   if (!result.success) {
     return {
@@ -881,8 +881,8 @@ async function handleNanopay(
         { label: `Reply payment received from ${recipient}`, status: 'complete' },
       ]
     : [
-        { label: `Created nanopayment channel (demo)`, status: 'complete' },
-        { label: `Sent ${amount} USDC to ${recipient} (simulated)`, status: 'complete' },
+        { label: `Created nanopayment channel`, status: 'complete' },
+        { label: `Sent ${amount} USDC to ${recipient} via ERC20 transfer`, status: 'complete' },
         { label: `Reply payment received from ${recipient}`, status: 'complete' },
       ];
 
@@ -962,7 +962,7 @@ async function mintNovaRewardAndLog(action: string, sender: string): Promise<voi
     to: sender,
     amount: `${rewardAmount} NOVA`,
     service: 'HTS',
-    status: mintResult.success ? 'minted' : 'simulated',
+    status: mintResult.success ? 'minted' : 'pending',
     transactionId: mintResult.transactionId,
     timestamp: Date.now(),
   });

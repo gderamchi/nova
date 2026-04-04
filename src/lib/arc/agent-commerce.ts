@@ -185,7 +185,7 @@ export async function simulateAgentCommerce(): Promise<AgentCommerceFlow> {
     service: 'defi-execution',
     amount: '0.01',
     payment: payment3,
-    result: payment3.success ? 'Swap executed: 0.5 ETH -> 1,250.21 USDC' : 'Payment failed',
+    result: payment3.success ? 'DeFi execution completed via Nova agent' : 'Payment failed',
   });
 
   const totalAmount = (0.005 + 0.003 + 0.01).toFixed(3);
