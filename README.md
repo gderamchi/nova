@@ -42,17 +42,42 @@ User (Telegram Mini App)
 
 ## 🎯 Sponsor Integrations
 
-### Uniswap — Token Swaps
+### Uniswap — Token Swaps (API Key Integration)
 Real on-chain swaps via **Uniswap V3 SwapRouter02** on Base Sepolia. Uses `multicall` with `exactInputSingle` + `refundETH` for native ETH swaps. Verified transactions on [BaseScan](https://sepolia.basescan.org).
+
+- **API Key**: Authenticated requests to `https://api.uniswap.org/v2/quote` with `x-api-key` header
+- **Fallback**: Graceful degradation to simulated quotes when API is unavailable
+- **Debug logging**: All API responses logged for transparency
+- [Uniswap Developer Feedback Form](https://forms.gle/7JEAfMPKHMDVQB6U8)
 
 ### 0G — Agent Memory & Storage
 Nova uses **0G decentralized storage** for persistent agent memory. Every operation (swap, transfer, bridge, payment) is stored and retrievable. Users can query their full operation history through natural language ("show my history").
 
-### Arc/Circle — Nanopayments
-**USDC nanopayments** between AI agents via Arc. Enables agent-to-agent commerce — agents can pay for API calls, data access, or services without human intervention. Gas-free micropayments on Arc's stablecoin-native infrastructure.
+### Arc/Circle — Nanopayments & Agent-to-Agent Commerce
+**USDC nanopayments** between AI agents via Arc. Enables **agent-to-agent commerce** — agents can pay for API calls, data access, or services without human intervention. Gas-free micropayments on Arc's stablecoin-native infrastructure.
 
-### Hedera — Audit Trail
-Every Nova operation is logged to **Hedera Consensus Service (HCS)** for an immutable, timestamped audit trail. Users can view their complete audit log through the chat interface ("show audit log"). Sub-second finality, predictable fees.
+- **Multi-agent commerce flow**: 3-agent payment loop (nova-defi -> oracle-price -> data-provider -> nova-defi)
+- **Reply payments**: Every nanopayment triggers a bidirectional reply, demonstrating real agent economy
+- **Service marketplace**: Agents register skills with prices, other agents discover and pay for them
+- **API endpoint**: `POST /api/agent-commerce` triggers the full simulation; `GET /api/agent-commerce` returns commerce history
+- **Architecture diagram**:
+  ```
+  nova-defi ──$0.005──> oracle-price ──$0.003──> data-provider
+       ^                                              │
+       └──────────────── $0.01 ───────────────────────┘
+  ```
+
+### Hedera — Audit Trail (HCS) + Reward Token (HTS)
+Nova uses **2 native Hedera services** — no Solidity required:
+
+1. **HCS (Hedera Consensus Service)** — Every Nova operation is logged to HCS topic `0.0.8504799` for an immutable, timestamped audit trail. Sub-second finality, predictable fees.
+2. **HTS (Hedera Token Service)** — The **NOVA reward token** (symbol: NOVA, decimals: 2, initial supply: 10,000) is created and minted via HTS. Users earn NOVA tokens for every successful swap, bridge, or transfer.
+
+- **HCS Topic ID**: `0.0.8504799`
+- **NOVA Token**: Created lazily on first use via `TokenCreateTransaction`, minted via `TokenMintTransaction`
+- **Reward flow**: After each successful operation, Nova mints NOVA rewards AND logs the reward event to HCS
+- **API endpoint**: `GET /api/hedera` returns `{ topicId, tokenId, hcsMessages, tokenInfo }`
+- **Key type**: ECDSA (`PrivateKey.fromStringECDSA`)
 
 ### Pimlico — Account Abstraction
 **ERC-4337 smart accounts** with gas sponsorship via Pimlico. Users don't need to hold ETH for gas — Nova sponsors all transaction fees through the Pimlico paymaster.
@@ -126,18 +151,22 @@ NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=
 
 ## 🔗 Deployed Contracts & Addresses
 
-| Contract | Address | Chain |
-|----------|---------|-------|
+| Contract / Service | Address / ID | Chain / Network |
+|-------------------|-------------|-----------------|
 | SwapRouter02 | `0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4` | Base Sepolia |
 | UniswapV3Factory | `0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24` | Base Sepolia |
 | WETH | `0x4200000000000000000000000000000000000006` | Base Sepolia |
 | USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Base Sepolia |
 | Nova Agent Wallet | `0x834583E76fbE01a9297982639AE72994A49872EB` | Base Sepolia |
+| HCS Topic | `0.0.8504799` | Hedera Testnet |
+| NOVA Token (HTS) | Created lazily on first use | Hedera Testnet |
+| Hedera Treasury | `0.0.8498893` | Hedera Testnet |
 
 ## 👥 Team
 
-- **Samir** ([@Samir_18100](https://t.me/Samir_18100))
-- **Habi** ([habicll](https://github.com/habicll))
+- **Samir** — Telegram: [@Samir_18100](https://t.me/Samir_18100) | X: [@Samir_18100](https://x.com/Samir_18100)
+- **Habi** — GitHub: [habicll](https://github.com/habicll) | Telegram: [@habicll](https://t.me/habicll)
+- **Guillaume** — Telegram: [@guillaumederamchi](https://t.me/guillaumederamchi) | X: [@gaborMusic](https://x.com/gaborMusic)
 
 ## 📄 License
 

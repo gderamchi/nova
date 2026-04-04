@@ -62,7 +62,7 @@ export async function createAgentPayment(
 
       client.setOperator(
         AccountId.fromString(config.accountId),
-        PrivateKey.fromStringED25519(config.privateKey),
+        PrivateKey.fromStringECDSA(config.privateKey),
       );
 
       const transaction = new TransferTransaction()

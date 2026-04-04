@@ -56,11 +56,14 @@ export async function getSwapQuote(
   });
 
   if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'no body');
+    console.log(`[Uniswap API] Quote failed (${response.status}): ${errorBody}`);
     // Fallback with simulated quote for demo
     return createSimulatedQuote(tokenIn, tokenOut, amount, chainId);
   }
 
   const data = await response.json();
+  console.log(`[Uniswap API] Quote success for ${tokenIn.symbol}->${tokenOut.symbol}:`, JSON.stringify(data).slice(0, 500));
   const quote = data.quote;
 
   const amountOut = BigInt(quote.amount);

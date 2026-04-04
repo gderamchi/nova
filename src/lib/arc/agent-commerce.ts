@@ -105,3 +105,121 @@ export function getInvocationHistory(agentId?: string): ServiceInvocation[] {
     .filter(i => i.requestingAgent === agentId || i.providingAgent === agentId)
     .slice(-50);
 }
+
+// ---- Multi-Agent Commerce Simulation ----
+
+export interface AgentCommerceFlow {
+  flowId: string;
+  steps: AgentCommerceStep[];
+  totalPayments: number;
+  totalAmount: string;
+  timestamp: number;
+}
+
+export interface AgentCommerceStep {
+  from: string;
+  to: string;
+  service: string;
+  amount: string;
+  payment: NanopaymentResult | null;
+  result: string;
+}
+
+const commerceHistory: AgentCommerceFlow[] = [];
+
+/**
+ * Simulates a 3-agent payment flow demonstrating agent-to-agent commerce:
+ *   1. nova-defi pays oracle-price for price data
+ *   2. oracle-price pays data-provider for historical data
+ *   3. data-provider pays nova-defi for DeFi execution (completing the loop)
+ */
+export async function simulateAgentCommerce(): Promise<AgentCommerceFlow> {
+  const flowId = `flow-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const steps: AgentCommerceStep[] = [];
+
+  // Step 1: nova-defi -> oracle-price (buy price feed)
+  const payment1 = await createNanopayment({
+    fromAgent: 'nova-defi',
+    toAgent: 'oracle-price',
+    amount: '0.005',
+    memo: 'Agent commerce: price feed request',
+    chainId: 84532,
+  });
+  steps.push({
+    from: 'nova-defi',
+    to: 'oracle-price',
+    service: 'price-feed',
+    amount: '0.005',
+    payment: payment1,
+    result: payment1.success ? 'ETH/USDC = $2,500.42 (live oracle price)' : 'Payment failed',
+  });
+
+  // Step 2: oracle-price -> data-provider (buy historical data)
+  const payment2 = await createNanopayment({
+    fromAgent: 'oracle-price',
+    toAgent: 'data-provider',
+    amount: '0.003',
+    memo: 'Agent commerce: historical data request',
+    chainId: 84532,
+  });
+  steps.push({
+    from: 'oracle-price',
+    to: 'data-provider',
+    service: 'historical-data',
+    amount: '0.003',
+    payment: payment2,
+    result: payment2.success ? '30d ETH OHLCV data (720 candles)' : 'Payment failed',
+  });
+
+  // Step 3: data-provider -> nova-defi (pay for DeFi execution service)
+  const payment3 = await createNanopayment({
+    fromAgent: 'data-provider',
+    toAgent: 'nova-defi',
+    amount: '0.01',
+    memo: 'Agent commerce: DeFi execution request',
+    chainId: 84532,
+  });
+  steps.push({
+    from: 'data-provider',
+    to: 'nova-defi',
+    service: 'defi-execution',
+    amount: '0.01',
+    payment: payment3,
+    result: payment3.success ? 'Swap executed: 0.5 ETH -> 1,250.21 USDC' : 'Payment failed',
+  });
+
+  const totalAmount = (0.005 + 0.003 + 0.01).toFixed(3);
+  const flow: AgentCommerceFlow = {
+    flowId,
+    steps,
+    totalPayments: 3,
+    totalAmount,
+    timestamp: Date.now(),
+  };
+
+  commerceHistory.push(flow);
+  return flow;
+}
+
+/**
+ * Creates a reply payment from the receiving agent back to the sender,
+ * simulating bidirectional agent-to-agent commerce.
+ */
+export async function createReplyPayment(
+  originalSender: string,
+  originalRecipient: string,
+  replyAmount: string,
+  service: string,
+): Promise<NanopaymentResult> {
+  return createNanopayment({
+    fromAgent: originalRecipient,
+    toAgent: originalSender,
+    amount: replyAmount,
+    memo: `Reply payment: ${service} acknowledgment`,
+    chainId: 84532,
+  });
+}
+
+export function getCommerceHistory(): AgentCommerceFlow[] {
+  return commerceHistory.slice(-50);
+}

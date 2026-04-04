@@ -25,6 +25,8 @@ import { getBridgeQuote } from './bridge/across';
 import { logToHCS, getAuditLog } from './hedera/hcs';
 import type { HCSMessage } from './hedera/hcs';
 import { createNanopayment, getPaymentHistory } from './arc/nanopay';
+import { createReplyPayment } from './arc/agent-commerce';
+import { mintNovaReward } from './hedera/hts';
 import { setMemory, getMemoryStore } from './openclaw/memory';
 
 // Uniswap V3 SwapRouter02 on Base Sepolia
@@ -148,6 +150,9 @@ export async function orchestrate(
       const details = `${intent.amount} ${intent.tokenIn}${intent.tokenOut ? ' -> ' + intent.tokenOut : ''}`;
       logOperationToHCS(intent.action, sender, details, result.txHashes[0]);
       storeOperationMemory(sender, intent.action, `${details} (${result.txHashes[0] ?? 'no-tx'})`);
+
+      // Mint NOVA reward via HTS + log to HCS (2 Hedera services: HCS + HTS)
+      mintNovaRewardAndLog(intent.action, sender).catch(() => { /* fire and forget */ });
     }
 
     return result;
@@ -609,17 +614,30 @@ async function handleNanopay(
     };
   }
 
+  // Simulate agent-to-agent commerce: receiving agent sends a reply payment
+  const replyPayment = await createReplyPayment(
+    sender,
+    recipient,
+    '0.001',
+    'service-acknowledgment',
+  );
+
+  const replyMsg = replyPayment.success
+    ? `\nReply payment: ${recipient} sent 0.001 USDC back (agent-to-agent commerce)`
+    : '';
+
   return {
     success: true,
-    message: `Nanopayment sent: ${amount} USDC to ${recipient}\nPayment ID: ${result.paymentId}\nFee: ${result.fee} USDC`,
+    message: `Nanopayment sent: ${amount} USDC to ${recipient}\nPayment ID: ${result.paymentId}\nFee: ${result.fee} USDC${replyMsg}`,
     plan: {
       steps: [
         { label: `Created nanopayment channel`, status: 'complete' },
         { label: `Sent ${amount} USDC to ${recipient}`, status: 'complete' },
+        { label: `Reply payment received from ${recipient}`, status: 'complete' },
       ],
       estimatedGas: '0',
       estimatedTime: '~1 second',
-      route: `Nanopayment via Arc/Circle`,
+      route: `Nanopayment via Arc/Circle (agent-to-agent)`,
     },
     txHashes: result.txHash ? [result.txHash] : [],
   };
@@ -671,6 +689,26 @@ function logOperationToHCS(action: string, sender: string, details: string, txHa
 function storeOperationMemory(sender: string, action: string, details: string): void {
   const key = `op-${Date.now()}`;
   setMemory(sender, key, `[${action}] ${details}`);
+}
+
+/**
+ * Mints a small NOVA token reward via HTS and logs the reward to HCS.
+ * This demonstrates usage of 2 native Hedera services: HCS + HTS.
+ */
+async function mintNovaRewardAndLog(action: string, sender: string): Promise<void> {
+  const rewardAmount = action === 'swap' ? 1.0 : action === 'bridge' ? 2.0 : 0.5;
+  const mintResult = await mintNovaReward(rewardAmount);
+
+  await logToHCS({
+    type: 'nova-reward',
+    from: 'nova-treasury',
+    to: sender,
+    amount: `${rewardAmount} NOVA`,
+    service: 'HTS',
+    status: mintResult.success ? 'minted' : 'simulated',
+    transactionId: mintResult.transactionId,
+    timestamp: Date.now(),
+  });
 }
 
 // --------------- Helpers ---------------
