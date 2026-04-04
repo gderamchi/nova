@@ -45,7 +45,7 @@ export async function createNanopayment(
 
   try {
     // Attempt to use Arc API for real payment
-    if (ARC_API_KEY !== 'PLACEHOLDER_REPLACE_ME') {
+    if (ARC_API_KEY && ARC_API_KEY !== 'PLACEHOLDER_REPLACE_ME' && !ARC_API_KEY.includes('PLACEHOLDER')) { try {
       const response = await fetch(`${ARC_API_BASE}/payments`, {
         method: 'POST',
         headers: {
@@ -75,7 +75,7 @@ export async function createNanopayment(
         paymentLedger.push(result);
         return result;
       }
-    }
+    } catch (_arcError) { /* fall through to demo mode */ } }
 
     // Simulated payment for demo
     const result: NanopaymentResult = {
