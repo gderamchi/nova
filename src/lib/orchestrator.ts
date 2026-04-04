@@ -17,7 +17,7 @@ import type {
 } from './intent-types';
 import { SUPPORTED_CHAINS } from './intent-types';
 import { getServerPublicClient, getGasOverrides } from './server-account';
-import { getAccountForUser, getWalletClientForUser, getNonceForAccount } from './user-wallets';
+import { getAccountForUser, getWalletClientForUser, getNonceForAccount, getSmartAccountClientForUser } from './user-wallets';
 import { getExplorerTxUrl, getTokenAddress } from './chains';
 import { getSwapQuote } from './uniswap/quote';
 import { resolveToken } from './uniswap/tokens';
@@ -202,6 +202,164 @@ export async function orchestrate(
 async function handleSwap(
   intent: ParsedIntent,
   _sender: `0x${string}`,
+  userId?: number,
+): Promise<OrchestratorResult> {
+  // Try gasless smart account swap first, fall back to EOA
+  if (userId !== undefined) {
+    try {
+      const result = await handleSwapWithSmartAccount(intent, userId);
+      return result;
+    } catch (err) {
+      console.log(`[nova] Smart account swap failed, falling back to EOA: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  return handleSwapWithEOA(intent, userId);
+}
+
+/** Gasless swap via Pimlico-sponsored ERC-4337 smart account */
+async function handleSwapWithSmartAccount(
+  intent: ParsedIntent,
+  userId: number,
+): Promise<OrchestratorResult> {
+  const chainId = getChainId(intent.chainFrom);
+  const smartClient = await getSmartAccountClientForUser(userId, chainId);
+  const publicClient = getServerPublicClient(chainId);
+  const smartAddress = smartClient.account.address;
+
+  const plan: TransactionPlan = {
+    steps: [
+      { label: 'Preparing gasless swap via Smart Account', status: 'active' },
+      { label: 'Sending sponsored UserOperation', status: 'pending' },
+      { label: 'Confirming transaction', status: 'pending' },
+    ],
+    estimatedGas: 'Sponsored by Pimlico',
+    estimatedTime: '~20 seconds',
+    route: `${intent.tokenIn} -> ${intent.tokenOut} via Uniswap V3 (gasless)`,
+  };
+
+  const txHashes: string[] = [];
+  const explorerUrls: string[] = [];
+
+  const isEthIn = intent.tokenIn.toUpperCase() === 'ETH';
+  const isEthOut = intent.tokenOut.toUpperCase() === 'ETH';
+  const wethAddress = getTokenAddress(chainId, 'WETH')!;
+  const tokenInAddress = isEthIn ? wethAddress : resolveToken(intent.tokenIn, chainId)?.address;
+  const tokenOutAddress = isEthOut ? wethAddress : resolveToken(intent.tokenOut, chainId)?.address;
+
+  if (!tokenInAddress || !tokenOutAddress) {
+    return {
+      success: false,
+      message: `Unknown token: ${!tokenInAddress ? intent.tokenIn : intent.tokenOut}`,
+      plan,
+      txHashes: [],
+      error: 'Token not found',
+    };
+  }
+
+  const tokenIn = resolveToken(intent.tokenIn, chainId);
+  const decimals = tokenIn?.decimals ?? 18;
+  const amountIn = BigInt(Math.floor(parseFloat(intent.amount) * 10 ** decimals));
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+
+  if (isEthIn) {
+    // ETH -> Token via multicall
+    const swapCalldata = encodeFunctionData({
+      abi: EXACT_INPUT_SINGLE_ABI,
+      functionName: 'exactInputSingle',
+      args: [{
+        tokenIn: tokenInAddress,
+        tokenOut: tokenOutAddress,
+        fee: 3000,
+        recipient: smartAddress,
+        amountIn,
+        amountOutMinimum: BigInt(0),
+        sqrtPriceLimitX96: BigInt(0),
+      }],
+    });
+
+    const refundCalldata = encodeFunctionData({
+      abi: REFUND_ETH_ABI,
+      functionName: 'refundETH',
+    });
+
+    const multicallData = encodeFunctionData({
+      abi: MULTICALL_ABI,
+      functionName: 'multicall',
+      args: [deadline, [swapCalldata, refundCalldata]],
+    });
+
+    plan.steps[1] = { label: 'Sending sponsored swap (ETH -> token)', status: 'active' };
+    const swapHash = await smartClient.sendTransaction({
+      to: SWAP_ROUTER,
+      data: multicallData,
+      value: amountIn,
+    });
+    txHashes.push(swapHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, swapHash));
+    plan.steps[1] = { label: 'Swap executed (gasless)', status: 'complete', txHash: swapHash };
+  } else {
+    // Token -> Token: approve then swap via smart account
+    plan.steps[1] = { label: 'Approving + swapping (sponsored)', status: 'active' };
+    const approveData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [SWAP_ROUTER, amountIn],
+    });
+    const approveHash = await smartClient.sendTransaction({
+      to: tokenInAddress,
+      data: approveData,
+    });
+    txHashes.push(approveHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, approveHash));
+
+    const swapCalldata = encodeFunctionData({
+      abi: EXACT_INPUT_SINGLE_ABI,
+      functionName: 'exactInputSingle',
+      args: [{
+        tokenIn: tokenInAddress,
+        tokenOut: tokenOutAddress,
+        fee: 3000,
+        recipient: smartAddress,
+        amountIn,
+        amountOutMinimum: BigInt(0),
+        sqrtPriceLimitX96: BigInt(0),
+      }],
+    });
+
+    const multicallData = encodeFunctionData({
+      abi: MULTICALL_ABI,
+      functionName: 'multicall',
+      args: [deadline, [swapCalldata]],
+    });
+
+    const swapHash = await smartClient.sendTransaction({
+      to: SWAP_ROUTER,
+      data: multicallData,
+      value: BigInt(0),
+    });
+    txHashes.push(swapHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, swapHash));
+    plan.steps[1] = { label: 'Swap executed (gasless)', status: 'complete', txHash: swapHash };
+  }
+
+  plan.steps[plan.steps.length - 1] = { label: 'Transaction confirmed (gas sponsored by Pimlico)', status: 'complete' };
+
+  return {
+    success: true,
+    message: `⛽ Gasless swap! ${intent.amount} ${intent.tokenIn} -> ${intent.tokenOut} on ${getChainName(chainId)} (gas sponsored by Pimlico)`,
+    plan: {
+      ...plan,
+      steps: plan.steps.map(s => ({ ...s, status: 'complete' as const })),
+    },
+    txHashes,
+    explorerUrls,
+  };
+}
+
+/** Original EOA swap (fallback when smart account is unavailable) */
+async function handleSwapWithEOA(
+  intent: ParsedIntent,
   userId?: number,
 ): Promise<OrchestratorResult> {
   const chainId = getChainId(intent.chainFrom);

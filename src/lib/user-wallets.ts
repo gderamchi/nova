@@ -20,6 +20,10 @@ import {
   getGasOverrides,
 } from './server-account';
 import { CHAIN_ID_MAP, baseSepolia } from './chains';
+import {
+  getSmartAccountClient as createAAClient,
+  getSmartAccountAddress as computeAAAddress,
+} from './smart-account-aa';
 
 function derivePrivateKey(userId: number): `0x${string}` {
   const masterKey = process.env.NOVA_PRIVATE_KEY ?? '';
@@ -93,4 +97,16 @@ export async function ensureUserFunded(userId: number, chainId: number): Promise
 
   await publicClient.waitForTransactionReceipt({ hash: txHash });
   console.log(`[nova] Funded user ${userId} wallet ${userAccount.address} with 0.001 ETH`);
+}
+
+/** Get a Pimlico-sponsored smart account client for a user (gasless txs) */
+export async function getSmartAccountClientForUser(userId: number, chainId: number) {
+  const pk = derivePrivateKey(userId);
+  return createAAClient(pk, chainId);
+}
+
+/** Get the counterfactual smart account address for a user */
+export async function getSmartAccountAddressForUser(userId: number, chainId: number): Promise<`0x${string}`> {
+  const pk = derivePrivateKey(userId);
+  return computeAAAddress(pk, chainId);
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { formatEther } from 'viem';
-import { getUserAccount, ensureUserFunded } from '@/lib/user-wallets';
+import { getUserAccount, ensureUserFunded, getSmartAccountAddressForUser } from '@/lib/user-wallets';
 import { getServerAccount, getServerPublicClient } from '@/lib/server-account';
 
 export async function GET(request: NextRequest) {
@@ -29,8 +29,17 @@ export async function GET(request: NextRequest) {
         .catch(() => BigInt(0)),
     ]);
 
+    // Compute smart account address (counterfactual — no deployment needed)
+    let smartAccountAddress: string | null = null;
+    if (userId) {
+      try {
+        smartAccountAddress = await getSmartAccountAddressForUser(Number(userId), 84532);
+      } catch { /* smart account address computation failed, non-critical */ }
+    }
+
     return NextResponse.json({
       address,
+      smartAccountAddress,
       balances: {
         baseSepolia: formatEther(baseBal),
         arbitrumSepolia: formatEther(arbBal),
