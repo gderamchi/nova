@@ -36,8 +36,8 @@ const GATEWAY_DEPOSIT_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [
-      { name: 'amount', type: 'uint256' },
       { name: 'token', type: 'address' },
+      { name: 'value', type: 'uint256' },
     ],
     outputs: [],
   },
@@ -95,7 +95,7 @@ export async function depositToGateway(
   const data = encodeFunctionData({
     abi: GATEWAY_DEPOSIT_ABI,
     functionName: 'deposit',
-    args: [amountWei, USDC_BASE_SEPOLIA],
+    args: [USDC_BASE_SEPOLIA, amountWei],
   });
 
   const txHash = await walletClient.sendTransaction({
