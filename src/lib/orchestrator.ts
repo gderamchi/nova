@@ -16,7 +16,8 @@ import type {
   TransactionPlan,
 } from './intent-types';
 import { SUPPORTED_CHAINS } from './intent-types';
-import { getServerWalletClient, getServerPublicClient, getServerAccount, getNextNonce, getGasOverrides } from './server-account';
+import { getServerPublicClient, getGasOverrides } from './server-account';
+import { getAccountForUser, getWalletClientForUser, getNonceForAccount } from './user-wallets';
 import { getExplorerTxUrl, getTokenAddress } from './chains';
 import { getSwapQuote } from './uniswap/quote';
 import { resolveToken } from './uniswap/tokens';
@@ -94,6 +95,7 @@ export interface OrchestratorResult {
 export async function orchestrate(
   intentResult: IntentParseResult,
   sender: `0x${string}`,
+  userId?: number,
 ): Promise<OrchestratorResult> {
   if (!intentResult.success || !intentResult.intent) {
     return {
@@ -112,16 +114,16 @@ export async function orchestrate(
 
     switch (intent.action) {
       case 'swap':
-        result = await handleSwap(intent, sender);
+        result = await handleSwap(intent, sender, userId);
         break;
       case 'bridge':
-        result = await handleBridge(intent, sender);
+        result = await handleBridge(intent, sender, userId);
         break;
       case 'transfer':
-        result = await handleTransfer(intent, sender);
+        result = await handleTransfer(intent, sender, userId);
         break;
       case 'balance':
-        result = await handleBalance(intent, sender);
+        result = await handleBalance(intent, sender, userId);
         break;
       case 'audit':
         result = await handleAudit(intent, sender);
@@ -166,11 +168,12 @@ export async function orchestrate(
 async function handleSwap(
   intent: ParsedIntent,
   _sender: `0x${string}`,
+  userId?: number,
 ): Promise<OrchestratorResult> {
   const chainId = getChainId(intent.chainFrom);
-  const walletClient = getServerWalletClient(chainId);
+  const walletClient = getWalletClientForUser(userId, chainId);
   const publicClient = getServerPublicClient(chainId);
-  const account = getServerAccount();
+  const account = getAccountForUser(userId);
 
   const plan: TransactionPlan = {
     steps: [
@@ -240,7 +243,7 @@ async function handleSwap(
     });
 
     plan.steps[1] = { label: 'Executing swap (ETH -> token)', status: 'active' };
-    const nonce = await getNextNonce(chainId);
+    const nonce = await getNonceForAccount(chainId, account.address);
     const gas = await getGasOverrides(chainId);
     const swapHash = await walletClient.sendTransaction({
       ...gas,
@@ -263,7 +266,7 @@ async function handleSwap(
       functionName: 'approve',
       args: [SWAP_ROUTER, amountIn],
     });
-    let nonce = await getNextNonce(chainId);
+    let nonce = await getNonceForAccount(chainId, account.address);
     let gas = await getGasOverrides(chainId);
     const approveHash = await walletClient.sendTransaction({
       ...gas,
@@ -299,7 +302,7 @@ async function handleSwap(
       args: [deadline, [swapCalldata]],
     });
 
-    nonce = await getNextNonce(chainId);
+    nonce = await getNonceForAccount(chainId, account.address);
     gas = await getGasOverrides(chainId);
     const swapHash = await walletClient.sendTransaction({
       ...gas,
@@ -335,12 +338,13 @@ async function handleSwap(
 async function handleBridge(
   intent: ParsedIntent,
   _sender: `0x${string}`,
+  userId?: number,
 ): Promise<OrchestratorResult> {
   const fromChainId = getChainId(intent.chainFrom);
   const toChainId = getChainId(intent.chainTo);
-  const walletClient = getServerWalletClient(fromChainId);
+  const walletClient = getWalletClientForUser(userId, fromChainId);
   const publicClient = getServerPublicClient(fromChainId);
-  const account = getServerAccount();
+  const account = getAccountForUser(userId);
 
   const quote = await getBridgeQuote(intent.tokenIn, intent.amount, fromChainId, toChainId);
 
@@ -361,7 +365,7 @@ async function handleBridge(
   const amountWei = BigInt(Math.floor(parseFloat(intent.amount) * 10 ** decimals));
 
   // Send to Across spoke pool
-  const bridgeNonce = await getNextNonce(fromChainId);
+  const bridgeNonce = await getNonceForAccount(fromChainId, account.address);
   const bridgeGas = await getGasOverrides(fromChainId);
   const txHash = await walletClient.sendTransaction({
     ...bridgeGas,
@@ -396,11 +400,12 @@ async function handleBridge(
 async function handleTransfer(
   intent: ParsedIntent,
   _sender: `0x${string}`,
+  userId?: number,
 ): Promise<OrchestratorResult> {
   const chainId = getChainId(intent.chainFrom);
-  const walletClient = getServerWalletClient(chainId);
+  const walletClient = getWalletClientForUser(userId, chainId);
   const publicClient = getServerPublicClient(chainId);
-  const account = getServerAccount();
+  const account = getAccountForUser(userId);
 
   let recipient = intent.recipient as `0x${string}` | undefined;
 
@@ -437,7 +442,7 @@ async function handleTransfer(
   };
 
   let txHash: `0x${string}`;
-  const transferNonce = await getNextNonce(chainId);
+  const transferNonce = await getNonceForAccount(chainId, account.address);
   const transferGas = await getGasOverrides(chainId);
 
   if (isEth) {
@@ -498,8 +503,9 @@ async function handleTransfer(
 async function handleBalance(
   intent: ParsedIntent,
   _sender: `0x${string}`,
+  userId?: number,
 ): Promise<OrchestratorResult> {
-  const account = getServerAccount();
+  const account = getAccountForUser(userId);
   const chains = [84532, 421614]; // Base Sepolia, Arbitrum Sepolia
 
   const balances: string[] = [];

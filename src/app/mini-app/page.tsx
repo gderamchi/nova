@@ -96,7 +96,7 @@ export default function MiniAppPage() {
       const execRes = await fetch('/api/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intentResult: parseResult }),
+        body: JSON.stringify({ intentResult: parseResult, userId: user?.id }),
       });
 
       const execResult = await execRes.json();

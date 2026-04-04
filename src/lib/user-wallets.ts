@@ -1,0 +1,95 @@
+/**
+ * Per-user wallet derivation from a master key.
+ * Each Telegram user gets a deterministic wallet derived via keccak256.
+ * Treasury (NOVA_PRIVATE_KEY) auto-funds new users with ETH for gas.
+ */
+
+import {
+  keccak256,
+  toHex,
+  parseEther,
+  createWalletClient,
+  http,
+  type WalletClient,
+} from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import {
+  getServerAccount,
+  getServerWalletClient,
+  getServerPublicClient,
+  getGasOverrides,
+} from './server-account';
+import { CHAIN_ID_MAP, baseSepolia } from './chains';
+
+function derivePrivateKey(userId: number): `0x${string}` {
+  const masterKey = process.env.NOVA_PRIVATE_KEY ?? '';
+  return keccak256(toHex(`${masterKey}nova-user-${userId}`));
+}
+
+export function getUserAccount(userId: number) {
+  return privateKeyToAccount(derivePrivateKey(userId));
+}
+
+export function getUserWalletClient(userId: number, chainId: number): WalletClient {
+  const chain = CHAIN_ID_MAP[chainId] ?? baseSepolia;
+  const account = getUserAccount(userId);
+  return createWalletClient({
+    account,
+    chain,
+    transport: http(),
+  });
+}
+
+export function getUserPublicClient(chainId: number) {
+  return getServerPublicClient(chainId);
+}
+
+export function getTreasuryAccount() {
+  return getServerAccount();
+}
+
+/** Returns user account if userId provided, otherwise server (demo) account */
+export function getAccountForUser(userId: number | undefined) {
+  return userId !== undefined ? getUserAccount(userId) : getServerAccount();
+}
+
+/** Returns user wallet client if userId provided, otherwise server wallet client */
+export function getWalletClientForUser(userId: number | undefined, chainId: number) {
+  return userId !== undefined ? getUserWalletClient(userId, chainId) : getServerWalletClient(chainId);
+}
+
+/** Get pending nonce for any account address */
+export async function getNonceForAccount(chainId: number, address: `0x${string}`): Promise<number> {
+  const publicClient = getServerPublicClient(chainId);
+  return publicClient.getTransactionCount({ address, blockTag: 'pending' });
+}
+
+const MIN_BALANCE = parseEther('0.005');
+const FUND_AMOUNT = parseEther('0.01');
+
+/** Fund user wallet from treasury if balance is below threshold */
+export async function ensureUserFunded(userId: number, chainId: number): Promise<void> {
+  const userAccount = getUserAccount(userId);
+  const publicClient = getServerPublicClient(chainId);
+
+  const balance = await publicClient.getBalance({ address: userAccount.address });
+
+  if (balance >= MIN_BALANCE) return;
+
+  const treasury = getTreasuryAccount();
+  const treasuryWallet = getServerWalletClient(chainId);
+  const gas = await getGasOverrides(chainId);
+  const nonce = await getNonceForAccount(chainId, treasury.address);
+
+  const txHash = await treasuryWallet.sendTransaction({
+    ...gas,
+    nonce,
+    to: userAccount.address,
+    value: FUND_AMOUNT,
+    chain: treasuryWallet.chain,
+    account: treasury,
+  });
+
+  await publicClient.waitForTransactionReceipt({ hash: txHash });
+  console.log(`[nova] Funded user ${userId} wallet ${userAccount.address} with 0.01 ETH`);
+}
