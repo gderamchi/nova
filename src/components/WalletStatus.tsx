@@ -121,12 +121,12 @@ function DepositModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end">
+    <div className="fixed inset-0 z-[9999] flex items-end" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Sheet */}
-      <div className="relative w-full rounded-t-2xl max-h-[80vh] overflow-y-auto p-6 pb-8 animate-slide-up" style={{ background: 'rgba(20, 15, 35, 0.97)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="relative w-full rounded-t-2xl overflow-y-auto p-5 pb-8 animate-slide-up" style={{ background: 'rgba(20, 15, 35, 0.98)', borderTop: '1px solid rgba(255,255,255,0.08)', maxHeight: '75vh' }}>
         {/* Close button */}
         <button
           onClick={onClose}
@@ -145,17 +145,18 @@ function DepositModal({
         </p>
 
         {/* Deposit method buttons */}
-        <div className="space-y-2.5 mb-5">
-          <button className="w-full py-3 rounded-xl text-sm font-medium btn-gradient flex items-center justify-center gap-2">
-            <span>💳</span> Buy with Card
+        <div className="space-y-2 mb-4">
+          <button className="w-full py-2.5 rounded-xl text-sm font-medium btn-gradient flex items-center justify-center gap-2">
+            💳 Buy with Card
           </button>
-          <button className="w-full py-3 rounded-xl text-sm font-medium btn-outline flex flex-col items-center gap-0.5">
-            <span className="flex items-center gap-2"><span>🏦</span> Connect Exchange</span>
-            <span className="text-[10px] text-nova-muted">Binance, Coinbase, Kraken</span>
-          </button>
-          <button className="w-full py-3 rounded-xl text-sm font-medium btn-outline flex items-center justify-center gap-2">
-            <span></span> Apple Pay
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button className="py-2.5 rounded-xl text-xs font-medium btn-outline flex items-center justify-center gap-1">
+              🏦 Exchange
+            </button>
+            <button className="py-2.5 rounded-xl text-xs font-medium btn-outline flex items-center justify-center gap-1">
+               Apple Pay
+            </button>
+          </div>
           <button
             onClick={copyAddress}
             className="w-full py-3 rounded-xl text-sm font-medium btn-outline flex items-center justify-center gap-2"
@@ -179,13 +180,7 @@ function DepositModal({
           </p>
         </div>
 
-        {/* QR placeholder */}
-        <div className="flex flex-col items-center gap-2 py-4 rounded-xl border border-dashed" style={{ borderColor: 'rgba(168, 85, 247, 0.2)' }}>
-          <div className="w-16 h-16 rounded-lg flex items-center justify-center" style={{ background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
-            <span className="text-nova-muted text-lg">⬚</span>
-          </div>
-          <p className="text-[10px] text-nova-muted">Scan to deposit</p>
-        </div>
+        <p className="text-[10px] text-nova-muted text-center mt-2">Send ETH on Base Sepolia to this address</p>
       </div>
     </div>
   );
