@@ -97,6 +97,22 @@ export async function ensureUserFunded(userId: number, chainId: number): Promise
 
   await publicClient.waitForTransactionReceipt({ hash: txHash });
   console.log(`[nova] Funded user ${userId} wallet ${userAccount.address} with 0.001 ETH`);
+
+  // Also fund the smart account address for gasless Pimlico txs
+  try {
+    const saAddr = await computeAAAddress(derivePrivateKey(userId), chainId);
+    const saBal = await publicClient.getBalance({ address: saAddr });
+    if (saBal < MIN_BALANCE) {
+      const nonce2 = await getNonceForAccount(chainId, treasury.address);
+      const txHash2 = await treasuryWallet.sendTransaction({
+        ...gas, nonce: nonce2,
+        to: saAddr, value: FUND_AMOUNT,
+        chain: treasuryWallet.chain, account: treasury,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: txHash2 });
+      console.log(`[nova] Funded user ${userId} smart account ${saAddr} with 0.001 ETH`);
+    }
+  } catch { /* smart account funding is best-effort */ }
 }
 
 /** Get a Pimlico-sponsored smart account client for a user (gasless txs) */
