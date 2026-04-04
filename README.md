@@ -100,8 +100,21 @@ Nova uses **2 native Hedera services** — no Solidity required:
 - **API endpoint**: `GET /api/hedera` returns `{ topicId, tokenId, hcsMessages, tokenInfo }`
 - **Key type**: ECDSA (`PrivateKey.fromStringECDSA`)
 
-### Pimlico — Account Abstraction
-**ERC-4337 smart accounts** with gas sponsorship via Pimlico. Users don't need to hold ETH for gas — Nova sponsors all transaction fees through the Pimlico paymaster.
+### Pimlico — Account Abstraction (Gasless Transactions)
+**ERC-4337 Safe smart accounts (v1.4.1)** with gas sponsorship via Pimlico. Every user gets a counterfactual smart account derived from their Telegram ID. Swaps are executed as **UserOperations** through the Pimlico bundler with the **verifying paymaster** sponsoring all gas fees — the user pays zero gas.
+
+- **Smart Account**: Safe v1.4.1 via `toSafeSmartAccount` (permissionless.js)
+- **EntryPoint**: v0.7 (`0x0000000071727De22E5E9d8BAf0edAc6f37da032`)
+- **Paymaster**: Pimlico verifying paymaster (testnet, free tier)
+- **Fallback**: If smart account fails, falls back to EOA wallet (always works)
+
+### Security — Spending Limits & Wallet Freeze
+Server-side security enforcement (cannot be bypassed by client or prompt injection):
+- **Per-transaction limits**: Max 5 ETH / 10,000 USDC per transaction
+- **Daily limits**: Max 10 ETH / 25,000 USDC per day
+- **Wallet freeze**: Instant freeze via `/api/freeze` — blocks all transactions
+- **Confirmation threshold**: Transactions >1 ETH require explicit confirmation
+- **AI guardrails**: Dual-layer — prompt-level (confidence thresholds) + server-side hardcoded limits
 
 ### ENS — Agent Identity
 Nova's agent identity is registered as an **ENS name** (`nova-agent.eth`), enabling agent discovery and metadata storage in ENS text records.
@@ -183,11 +196,22 @@ NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=
 | NOVA Token (HTS) | Created lazily on first use | Hedera Testnet |
 | Hedera Treasury | `0.0.8498893` | Hedera Testnet |
 
+## ✅ Verified On-Chain Transactions
+
+| Type | Transaction | Explorer |
+|------|-------------|----------|
+| Uniswap V3 Swap | `0x3cbb9d7d...` | [BaseScan](https://sepolia.basescan.org/tx/0x3cbb9d7d8bbdf411a1195b21d5d39545e8d451fd4d7318858113f23db60cf36b) |
+| Uniswap V3 Swap | `0xec3218f1...` | [BaseScan](https://sepolia.basescan.org/tx/0xec3218f1d07c402806c3c2e7154f3d912e039366299c202ab62dd1869d60edfb) |
+| Gasless Swap (Pimlico) | `0x413516f7...` | [BaseScan](https://sepolia.basescan.org/tx/0x413516f78e1cd82a39f82cafdf6eeac9a101a4d37ff8f8fef86648bd30faa158) |
+| Circle Gateway Deposit | `0x42a8abb9...` | [BaseScan](https://sepolia.basescan.org/tx/0x42a8abb9eefe775639deb30e3da4a7798609929b99b3f13f423a4b795b96711a) |
+| ETH Transfer | `0xb6ebf176...` | [BaseScan](https://sepolia.basescan.org/tx/0xb6ebf1760d7bbdc75400ffb36470be3d2dea5af50e681b035edaecedf728df2a) |
+| Hedera HCS Audit | Topic `0.0.8504799` | [Mirror Node](https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.8504799/messages) |
+
 ## 👥 Team
 
 - **Samir** — Telegram: [@Samir_18100](https://t.me/Samir_18100) | LinkedIn: [Samir](#)
 - **Habi** — GitHub: [habicll](https://github.com/habicll) | LinkedIn: [Habi](#)
-- **Guillaume** — Telegram: [@guillaumederamchi](https://t.me/guillaumederamchi) | LinkedIn: [Guillaume](#)
+
 
 ## 📄 License
 
