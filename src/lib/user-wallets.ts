@@ -64,8 +64,8 @@ export async function getNonceForAccount(chainId: number, address: `0x${string}`
   return publicClient.getTransactionCount({ address, blockTag: 'pending' });
 }
 
-const MIN_BALANCE = parseEther('0.005');
-const FUND_AMOUNT = parseEther('0.01');
+const MIN_BALANCE = parseEther('0.0005');
+const FUND_AMOUNT = parseEther('0.001');
 
 /** Fund user wallet from treasury if balance is below threshold */
 export async function ensureUserFunded(userId: number, chainId: number): Promise<void> {
@@ -78,7 +78,8 @@ export async function ensureUserFunded(userId: number, chainId: number): Promise
 
   const treasury = getTreasuryAccount();
   const treasuryWallet = getServerWalletClient(chainId);
-  const gas = await getGasOverrides(chainId);
+  // Use lower gas for simple ETH funding transfer
+  const gas = { maxFeePerGas: BigInt(1000000000), maxPriorityFeePerGas: BigInt(1000000000) }; // 1 gwei
   const nonce = await getNonceForAccount(chainId, treasury.address);
 
   const txHash = await treasuryWallet.sendTransaction({
@@ -91,5 +92,5 @@ export async function ensureUserFunded(userId: number, chainId: number): Promise
   });
 
   await publicClient.waitForTransactionReceipt({ hash: txHash });
-  console.log(`[nova] Funded user ${userId} wallet ${userAccount.address} with 0.01 ETH`);
+  console.log(`[nova] Funded user ${userId} wallet ${userAccount.address} with 0.001 ETH`);
 }
