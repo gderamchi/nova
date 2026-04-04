@@ -121,12 +121,12 @@ function DepositModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <div className="z-[9999]" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'flex-end' }}>
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)' }} onClick={onClose} />
 
       {/* Sheet */}
-      <div className="relative w-full rounded-t-2xl overflow-y-auto p-5 pb-8 animate-slide-up" style={{ background: 'rgba(20, 15, 35, 0.98)', borderTop: '1px solid rgba(255,255,255,0.08)', maxHeight: '75vh' }}>
+      <div style={{ position: 'relative', width: '100%', background: 'rgba(20, 15, 35, 0.98)', borderTop: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px 16px 0 0', maxHeight: '70vh', overflowY: 'auto', padding: '20px', paddingBottom: '32px' }}>
         {/* Close button */}
         <button
           onClick={onClose}
