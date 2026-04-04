@@ -9,7 +9,7 @@ import { useTelegram } from '@/hooks/useTelegram';
 import type { ChatMessage, TransactionPlan } from '@/lib/intent-types';
 
 export default function MiniAppPage() {
-  const { user, isReady } = useTelegram();
+  const { user, isReady, isGuest } = useTelegram();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activePlan, setActivePlan] = useState<TransactionPlan | null>(null);
@@ -134,6 +134,21 @@ export default function MiniAppPage() {
 
   return (
     <>
+      {/* Web mode banner */}
+      {isGuest && (
+        <div className="sticky top-0 z-40 flex items-center justify-center gap-2 px-4 py-2 text-xs text-nova-muted" style={{ background: 'rgba(139, 92, 246, 0.08)', borderBottom: '1px solid rgba(139, 92, 246, 0.15)' }}>
+          <span>🌐 Web Mode — Open in Telegram for the full experience</span>
+          <a
+            href="https://t.me/novahackathon_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-400 underline"
+          >
+            Open →
+          </a>
+        </div>
+      )}
+
       {/* Header */}
       <div className="glass-panel sticky top-0 z-30">
         <div className="flex items-center justify-between px-4 py-3">

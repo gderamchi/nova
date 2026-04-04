@@ -114,6 +114,49 @@ export function ChatInterface({
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
 
+  // Detect transaction result messages (assistant messages with explorer URLs + success keywords)
+  const txCard = !isUser && message.role === 'assistant' ? parseTransactionResult(message.content) : null;
+
+  if (txCard) {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[85%] space-y-2">
+          {/* Text portion (if any) */}
+          {txCard.textBefore && (
+            <div
+              className="rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-nova-text"
+              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
+            >
+              <p className="text-sm whitespace-pre-wrap break-words">{txCard.textBefore}</p>
+            </div>
+          )}
+          {/* Transaction card */}
+          <div
+            className="rounded-2xl rounded-bl-sm px-4 py-3.5"
+            style={{ background: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.2)' }}
+          >
+            <p className="text-sm font-semibold text-green-400 flex items-center gap-1.5">
+              ✅ {txCard.headline}
+            </p>
+            {txCard.detail && (
+              <p className="text-xs text-nova-muted mt-1">{txCard.detail}</p>
+            )}
+            <a
+              href={txCard.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 mt-2.5 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              🔗 View on BaseScan →
+            </a>
+            <p className="text-[11px] text-nova-muted/70 mt-2">Your tokens are in your Nova wallet</p>
+          </div>
+          <p className="text-[10px] text-nova-muted">{formatTime(message.timestamp)}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -186,6 +229,38 @@ function WelcomeMessage() {
       </div>
     </div>
   );
+}
+
+interface TransactionResultCard {
+  headline: string;
+  detail: string;
+  url: string;
+  textBefore: string;
+}
+
+function parseTransactionResult(content: string): TransactionResultCard | null {
+  // Match explorer URLs (basescan, etherscan, arbiscan, etc.)
+  const urlMatch = content.match(/(https?:\/\/[^\s]*(?:scan|explorer)[^\s]*)/i);
+  if (!urlMatch) return null;
+
+  // Must also contain a success-related keyword
+  const successPattern = /swapped|swap completed|sent|bridging|bridge completed|transfer completed|confirmed/i;
+  if (!successPattern.test(content)) return null;
+
+  const url = urlMatch[1];
+
+  // Extract a headline from the message
+  const headlineMatch = content.match(/(swapped\s+.+?(?:for|to|→)\s+\S+|sent\s+.+?to\s+\S+|bridging\s+.+?(?:to|→)\s+\S+)/i);
+  const headline = headlineMatch ? headlineMatch[1] : 'Transaction Confirmed';
+
+  // Text before the first 🔗 or URL
+  const textBefore = content
+    .split(/🔗|https?:\/\//)[0]
+    .replace(successPattern, '')
+    .trim()
+    .replace(/\n+$/, '');
+
+  return { headline, detail: '', url, textBefore };
 }
 
 function LinkifiedText({ text }: { text: string }) {
