@@ -39,7 +39,6 @@ const EXACT_INPUT_SINGLE_ABI = [
           { name: 'tokenOut', type: 'address' },
           { name: 'fee', type: 'uint24' },
           { name: 'recipient', type: 'address' },
-          { name: 'deadline', type: 'uint256' },
           { name: 'amountIn', type: 'uint256' },
           { name: 'amountOutMinimum', type: 'uint256' },
           { name: 'sqrtPriceLimitX96', type: 'uint160' },
@@ -47,6 +46,29 @@ const EXACT_INPUT_SINGLE_ABI = [
       },
     ],
     outputs: [{ name: 'amountOut', type: 'uint256' }],
+  },
+] as const;
+
+const MULTICALL_ABI = [
+  {
+    name: 'multicall',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      { name: 'deadline', type: 'uint256' },
+      { name: 'data', type: 'bytes[]' },
+    ],
+    outputs: [{ name: 'results', type: 'bytes[]' }],
+  },
+] as const;
+
+const REFUND_ETH_ABI = [
+  {
+    name: 'refundETH',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [],
+    outputs: [],
   },
 ] as const;
 
@@ -158,86 +180,115 @@ async function handleSwap(
   const decimals = tokenIn?.decimals ?? 18;
   const amountIn = BigInt(Math.floor(parseFloat(intent.amount) * 10 ** decimals));
 
-  let nonce: number;
+  plan.steps[0] = { label: 'Preparing swap via Uniswap V3', status: 'active' };
 
-  // If sending ETH, wrap it first (deposit to WETH)
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+
   if (isEthIn) {
-    plan.steps[0] = { label: 'Wrapping ETH -> WETH', status: 'active' };
-    nonce = await getNextNonce(chainId);
-    const wrapGas = await getGasOverrides(chainId);
-    const wrapHash = await walletClient.sendTransaction({
-      ...wrapGas,
-      nonce,
-      to: wethAddress,
-      value: amountIn,
-      chain: walletClient.chain,
-      account,
-    });
-    await publicClient.waitForTransactionReceipt({ hash: wrapHash });
-    txHashes.push(wrapHash);
-    explorerUrls.push(getExplorerTxUrl(chainId, wrapHash));
-    plan.steps[0] = { label: 'Wrapped ETH -> WETH', status: 'complete', txHash: wrapHash };
-  }
-
-  // Approve SwapRouter to spend tokenIn
-  plan.steps[1] = { label: 'Approving token spend', status: 'active' };
-  const approveData = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: 'approve',
-    args: [SWAP_ROUTER, amountIn],
-  });
-  nonce = await getNextNonce(chainId);
-    const approveGas = await getGasOverrides(chainId);
-  const approveHash = await walletClient.sendTransaction({
-    ...approveGas,
-    nonce,
-    to: tokenInAddress,
-    data: approveData,
-    chain: walletClient.chain,
-    account,
-  });
-  await publicClient.waitForTransactionReceipt({ hash: approveHash });
-  txHashes.push(approveHash);
-  explorerUrls.push(getExplorerTxUrl(chainId, approveHash));
-  plan.steps[1] = { label: 'Token approved', status: 'complete', txHash: approveHash };
-
-  // Execute swap via exactInputSingle
-  plan.steps[2] = { label: 'Executing swap', status: 'active' };
-  const deadline = BigInt(Math.floor(Date.now() / 1000) + 1800);
-
-  const swapData = encodeFunctionData({
-    abi: EXACT_INPUT_SINGLE_ABI,
-    functionName: 'exactInputSingle',
-    args: [
-      {
+    // ETH -> Token: use multicall with exactInputSingle + refundETH, send ETH as value
+    const swapCalldata = encodeFunctionData({
+      abi: EXACT_INPUT_SINGLE_ABI,
+      functionName: 'exactInputSingle',
+      args: [{
         tokenIn: tokenInAddress,
         tokenOut: tokenOutAddress,
         fee: 3000,
         recipient: account.address,
-        deadline,
         amountIn,
         amountOutMinimum: BigInt(0),
         sqrtPriceLimitX96: BigInt(0),
-      },
-    ],
-  });
+      }],
+    });
 
-  nonce = await getNextNonce(chainId);
-    const swapGas = await getGasOverrides(chainId);
-  const swapHash = await walletClient.sendTransaction({
-    ...swapGas,
-    nonce,
-    to: SWAP_ROUTER,
-    data: swapData,
-    value: BigInt(0),
-    chain: walletClient.chain,
-    account,
-  });
-  await publicClient.waitForTransactionReceipt({ hash: swapHash });
-  txHashes.push(swapHash);
-  explorerUrls.push(getExplorerTxUrl(chainId, swapHash));
-  plan.steps[2] = { label: 'Swap executed', status: 'complete', txHash: swapHash };
-  plan.steps[3] = { label: 'Transaction confirmed', status: 'complete' };
+    const refundCalldata = encodeFunctionData({
+      abi: REFUND_ETH_ABI,
+      functionName: 'refundETH',
+    });
+
+    const multicallData = encodeFunctionData({
+      abi: MULTICALL_ABI,
+      functionName: 'multicall',
+      args: [deadline, [swapCalldata, refundCalldata]],
+    });
+
+    plan.steps[1] = { label: 'Executing swap (ETH -> token)', status: 'active' };
+    const nonce = await getNextNonce(chainId);
+    const gas = await getGasOverrides(chainId);
+    const swapHash = await walletClient.sendTransaction({
+      ...gas,
+      nonce,
+      to: SWAP_ROUTER,
+      data: multicallData,
+      value: amountIn,
+      chain: walletClient.chain,
+      account,
+    });
+    await publicClient.waitForTransactionReceipt({ hash: swapHash });
+    txHashes.push(swapHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, swapHash));
+    plan.steps[1] = { label: 'Swap executed', status: 'complete', txHash: swapHash };
+  } else {
+    // Token -> Token: approve then exactInputSingle
+    plan.steps[1] = { label: 'Approving token spend', status: 'active' };
+    const approveData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [SWAP_ROUTER, amountIn],
+    });
+    let nonce = await getNextNonce(chainId);
+    let gas = await getGasOverrides(chainId);
+    const approveHash = await walletClient.sendTransaction({
+      ...gas,
+      nonce,
+      to: tokenInAddress,
+      data: approveData,
+      chain: walletClient.chain,
+      account,
+    });
+    await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    txHashes.push(approveHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, approveHash));
+    plan.steps[1] = { label: 'Token approved', status: 'complete', txHash: approveHash };
+
+    plan.steps[2] = { label: 'Executing swap', status: 'active' };
+    const swapCalldata = encodeFunctionData({
+      abi: EXACT_INPUT_SINGLE_ABI,
+      functionName: 'exactInputSingle',
+      args: [{
+        tokenIn: tokenInAddress,
+        tokenOut: tokenOutAddress,
+        fee: 3000,
+        recipient: account.address,
+        amountIn,
+        amountOutMinimum: BigInt(0),
+        sqrtPriceLimitX96: BigInt(0),
+      }],
+    });
+
+    const multicallData = encodeFunctionData({
+      abi: MULTICALL_ABI,
+      functionName: 'multicall',
+      args: [deadline, [swapCalldata]],
+    });
+
+    nonce = await getNextNonce(chainId);
+    gas = await getGasOverrides(chainId);
+    const swapHash = await walletClient.sendTransaction({
+      ...gas,
+      nonce,
+      to: SWAP_ROUTER,
+      data: multicallData,
+      value: BigInt(0),
+      chain: walletClient.chain,
+      account,
+    });
+    await publicClient.waitForTransactionReceipt({ hash: swapHash });
+    txHashes.push(swapHash);
+    explorerUrls.push(getExplorerTxUrl(chainId, swapHash));
+    plan.steps[2] = { label: 'Swap executed', status: 'complete', txHash: swapHash };
+  }
+
+  plan.steps[plan.steps.length - 1] = { label: 'Transaction confirmed', status: 'complete' };
 
   return {
     success: true,
