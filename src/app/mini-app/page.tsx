@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { ChatInterface } from '@/components/ChatInterface';
 import { WalletStatus } from '@/components/WalletStatus';
-import { DemoMode } from '@/components/DemoMode';
+
 import { AgentIdentityCard } from '@/components/AgentIdentity';
 import { useTelegram } from '@/hooks/useTelegram';
 import type { ChatMessage, TransactionPlan } from '@/lib/intent-types';
@@ -14,7 +14,7 @@ export default function MiniAppPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activePlan, setActivePlan] = useState<TransactionPlan | null>(null);
   const [txHashes, setTxHashes] = useState<string[]>([]);
-  const [showDemo, setShowDemo] = useState(false);
+
   const [showAgent, setShowAgent] = useState(false);
   const [walletRefreshKey, setWalletRefreshKey] = useState(0);
 
@@ -187,12 +187,6 @@ export default function MiniAppPage() {
         />
       </div>
 
-      {/* Demo mode */}
-      <DemoMode
-        onRunCommand={handleSendMessage}
-        isActive={showDemo}
-        onToggle={() => setShowDemo(!showDemo)}
-      />
     </>
   );
 }

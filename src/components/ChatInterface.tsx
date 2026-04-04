@@ -132,7 +132,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               : { background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }
         }
       >
-        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+        <p className="text-sm whitespace-pre-wrap break-words">
+          {isUser ? message.content : <LinkifiedText text={message.content} />}
+        </p>
         <p className={`text-[10px] mt-1 ${isUser ? 'text-white/60' : 'text-nova-muted'}`}>
           {formatTime(message.timestamp)}
         </p>
@@ -183,6 +185,31 @@ function WelcomeMessage() {
         <p>&ldquo;Check my balance&rdquo;</p>
       </div>
     </div>
+  );
+}
+
+function LinkifiedText({ text }: { text: string }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-400 underline break-all"
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
   );
 }
 

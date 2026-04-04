@@ -121,51 +121,71 @@ function DepositModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-end">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Sheet */}
-      <div className="relative w-full max-w-md rounded-t-2xl p-5 pb-8 animate-slide-up" style={{ background: 'rgba(20, 15, 35, 0.95)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="relative w-full rounded-t-2xl max-h-[80vh] overflow-y-auto p-6 pb-8 animate-slide-up" style={{ background: 'rgba(20, 15, 35, 0.97)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-nova-muted hover:text-nova-text transition-colors"
+          style={{ background: 'rgba(255,255,255,0.05)' }}
+        >
+          ✕
+        </button>
+
         {/* Handle */}
         <div className="w-10 h-1 rounded-full bg-white/10 mx-auto mb-4" />
 
-        <h3 className="text-sm font-bold text-nova-text mb-1">Deposit ETH</h3>
-        <p className="text-[11px] text-nova-muted mb-4">
-          Send ETH to this address on Base Sepolia
+        <h3 className="text-base font-bold text-nova-text mb-1">Add Funds</h3>
+        <p className="text-[11px] text-nova-muted mb-5">
+          Deposit ETH to your Nova wallet on Base Sepolia
         </p>
 
+        {/* Deposit method buttons */}
+        <div className="space-y-2.5 mb-5">
+          <button className="w-full py-3 rounded-xl text-sm font-medium btn-gradient flex items-center justify-center gap-2">
+            <span>💳</span> Buy with Card
+          </button>
+          <button className="w-full py-3 rounded-xl text-sm font-medium btn-outline flex flex-col items-center gap-0.5">
+            <span className="flex items-center gap-2"><span>🏦</span> Connect Exchange</span>
+            <span className="text-[10px] text-nova-muted">Binance, Coinbase, Kraken</span>
+          </button>
+          <button className="w-full py-3 rounded-xl text-sm font-medium btn-outline flex items-center justify-center gap-2">
+            <span></span> Apple Pay
+          </button>
+          <button
+            onClick={copyAddress}
+            className="w-full py-3 rounded-xl text-sm font-medium btn-outline flex items-center justify-center gap-2"
+          >
+            <span>📋</span> {copied ? 'Copied!' : 'Copy Address'}
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex-1 h-px bg-white/5" />
+          <span className="text-[10px] text-nova-muted uppercase tracking-wider">Or send directly</span>
+          <div className="flex-1 h-px bg-white/5" />
+        </div>
+
         {/* Address box */}
-        <div className="rounded-xl p-3 mb-3" style={{ background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+        <div className="rounded-xl p-3 mb-4" style={{ background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
           <p className="text-[11px] text-nova-muted mb-1">Your wallet address</p>
-          <p className="text-xs font-mono text-nova-text break-all leading-relaxed">
+          <p className="text-xs font-mono text-nova-text break-all leading-relaxed select-all">
             {address}
           </p>
         </div>
 
-        {/* Copy button */}
-        <button
-          onClick={copyAddress}
-          className="w-full py-2.5 rounded-full text-xs font-medium btn-gradient"
-        >
-          {copied ? 'Copied!' : 'Copy Address'}
-        </button>
-
         {/* QR placeholder */}
-        <div className="mt-4 flex flex-col items-center gap-2 py-4 rounded-xl border border-dashed" style={{ borderColor: 'rgba(168, 85, 247, 0.2)' }}>
+        <div className="flex flex-col items-center gap-2 py-4 rounded-xl border border-dashed" style={{ borderColor: 'rgba(168, 85, 247, 0.2)' }}>
           <div className="w-16 h-16 rounded-lg flex items-center justify-center" style={{ background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
             <span className="text-nova-muted text-lg">⬚</span>
           </div>
           <p className="text-[10px] text-nova-muted">Scan to deposit</p>
         </div>
-
-        {/* Close */}
-        <button
-          onClick={onClose}
-          className="w-full mt-3 py-2 rounded-full text-xs btn-outline"
-        >
-          Close
-        </button>
       </div>
     </div>
   );
