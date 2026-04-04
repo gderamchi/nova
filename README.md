@@ -1,49 +1,147 @@
-# Nova - Zero-Click Cross-Chain DeFi Agent
+# Nova — Zero-Click Cross-Chain DeFi Agent
 
-> 🏗️ Built at **ETHGlobal Cannes 2026**
+> 🏗️ Built at **ETHGlobal Cannes 2026** | [Live Demo](https://nova-sigma-steel.vercel.app) | [Telegram Bot](https://t.me/novahackathon_bot)
 
 ## 🧠 What is Nova?
 
-Nova is an AI-powered agent that **fully automates cryptocurrency purchases** through a simple WhatsApp conversation. No dApps, no wallets to manage manually, no complex interfaces — just tell Nova what you want to buy, and it handles everything.
-
-Want to buy Ethereum? Just send a message like:
+Nova is an AI-powered DeFi agent that runs inside **Telegram** as a Mini App. Just type what you want in natural language — swap tokens, bridge cross-chain, send payments — and Nova handles everything. No wallet setup, no gas management, no dApp UI to learn.
 
 ```
-"Buy me 50$ of ETH"
+"Swap 0.01 ETH to USDC"  →  ✅ Real Uniswap V3 transaction on-chain
 ```
 
-Nova takes care of the rest — from wallet management to executing the swap on-chain via smart contracts.
+## ✨ Features
 
-## ✨ Key Features
+- 🗣️ **Natural Language DeFi** — Claude AI understands your intent ("buy ETH", "send USDC to vitalik.eth")
+- 📱 **Telegram Mini App** — 900M+ users, nothing to install, one-tap access
+- 🔁 **Uniswap V3 Swaps** — Real on-chain token swaps via SwapRouter02
+- 🌉 **Cross-Chain Bridge** — Bridge assets between Base and Arbitrum via Across Protocol
+- 💸 **Transfers** — Send ETH or ERC20 tokens to any address or ENS name
+- ⛽ **Account Abstraction** — ERC-4337 smart accounts with gas sponsorship via Pimlico
+- 💰 **Agent Nanopayments** — USDC micropayments between AI agents via Arc/Circle
+- 📝 **Audit Trail** — Every operation logged to Hedera Consensus Service (HCS)
+- 🧠 **Agent Memory** — Persistent operation history via 0G decentralized storage
+- 🔗 **ENS Identity** — Agent identity and discovery via ENS names
 
-- **🟢 WhatsApp-native** — Interact with DeFi directly from your messaging app
-- **🔁 Automated swaps** — Powered by [Uniswap](https://uniswap.org/) for seamless token exchanges
-- **📜 Smart contract execution** — Transactions are executed trustlessly on-chain
-- **🌉 Cross-chain support** — Swap tokens across multiple chains (coming soon)
-- **🤖 Conversational AI** — Natural language understanding for intuitive interactions
-- **⚡ Zero-click experience** — No manual approvals, no complex UX — just results
+## 🏗️ Architecture
 
-## 🔄 How It Works
+```
+User (Telegram Mini App)
+  → Chat UI (Next.js + Tailwind)
+    → Claude AI (Intent Parser)
+      → Orchestrator (Route Planning)
+        → Execution Engine
+          ├── Uniswap V3 (Swaps)
+          ├── Across Protocol (Bridges)
+          ├── viem (Transfers)
+          ├── Arc/Circle (Nanopayments)
+          ├── Pimlico (AA + Gas Sponsorship)
+          ├── Hedera HCS (Audit Trail)
+          └── 0G Storage (Agent Memory)
+```
 
-1. **You send a message** on WhatsApp (e.g. *"Buy 100$ of ETH"*)
-2. **Nova understands** your intent using AI
-3. **Nova prepares the transaction** — finds the best route via Uniswap
-4. **Smart contracts execute** the swap on-chain
-5. **You get a confirmation** with the transaction details
+## 🎯 Sponsor Integrations
+
+### Uniswap — Token Swaps
+Real on-chain swaps via **Uniswap V3 SwapRouter02** on Base Sepolia. Uses `multicall` with `exactInputSingle` + `refundETH` for native ETH swaps. Verified transactions on [BaseScan](https://sepolia.basescan.org).
+
+### 0G — Agent Memory & Storage
+Nova uses **0G decentralized storage** for persistent agent memory. Every operation (swap, transfer, bridge, payment) is stored and retrievable. Users can query their full operation history through natural language ("show my history").
+
+### Arc/Circle — Nanopayments
+**USDC nanopayments** between AI agents via Arc. Enables agent-to-agent commerce — agents can pay for API calls, data access, or services without human intervention. Gas-free micropayments on Arc's stablecoin-native infrastructure.
+
+### Hedera — Audit Trail
+Every Nova operation is logged to **Hedera Consensus Service (HCS)** for an immutable, timestamped audit trail. Users can view their complete audit log through the chat interface ("show audit log"). Sub-second finality, predictable fees.
+
+### Pimlico — Account Abstraction
+**ERC-4337 smart accounts** with gas sponsorship via Pimlico. Users don't need to hold ETH for gas — Nova sponsors all transaction fees through the Pimlico paymaster.
+
+### ENS — Agent Identity
+Nova's agent identity is registered as an **ENS name** (`nova-agent.eth`), enabling agent discovery and metadata storage in ENS text records.
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Messaging | WhatsApp API |
-| AI Agent | LLM-powered intent parsing |
-| DEX | Uniswap Protocol |
-| Blockchain | Ethereum / EVM-compatible chains |
-| Smart Contracts | Solidity |
+| Frontend | Next.js 14, React 18, Tailwind CSS |
+| Messaging | Telegram Mini App SDK |
+| AI | Anthropic Claude (intent parsing) |
+| Blockchain | Base Sepolia, Arbitrum Sepolia |
+| DEX | Uniswap V3 (SwapRouter02) |
+| Bridge | Across Protocol |
+| AA | Pimlico (ERC-4337 bundler + paymaster) |
+| Payments | Arc/Circle (USDC nanopayments) |
+| Audit | Hedera Consensus Service (HCS) |
+| Storage | 0G decentralized storage |
+| Identity | ENS (Ethereum Name Service) |
+| Deploy | Vercel |
 
-## 🚧 Status
+## 🚀 Quick Start
 
-This project is currently being built for **ETHGlobal Cannes 2026**. Stay tuned!
+```bash
+# Clone
+git clone https://github.com/gderamchi/nova.git
+cd nova
+
+# Install
+npm install
+
+# Configure
+cp .env.example .env.local
+# Add your API keys (see below)
+
+# Run
+npm run dev
+```
+
+### Environment Variables
+
+```env
+ANTHROPIC_API_KEY=         # Claude API key for intent parsing
+TELEGRAM_BOT_TOKEN=        # Telegram bot token from @BotFather
+NOVA_PRIVATE_KEY=          # Server wallet private key (testnet only!)
+NEXT_PUBLIC_PIMLICO_API_KEY=
+NEXT_PUBLIC_ALCHEMY_API_KEY=
+NEXT_PUBLIC_BASE_SEPOLIA_RPC=https://base-sepolia-rpc.publicnode.com
+NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC=https://arbitrum-sepolia-rpc.publicnode.com
+NEXT_PUBLIC_HEDERA_ACCOUNT_ID=
+NEXT_PUBLIC_HEDERA_PRIVATE_KEY=
+NEXT_PUBLIC_ARC_API_KEY=
+NEXT_PUBLIC_0G_API_KEY=
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=
+```
+
+## 📱 Demo
+
+1. Open [@novahackathon_bot](https://t.me/novahackathon_bot) on Telegram
+2. Tap **"Open Nova"** menu button
+3. Try these commands:
+   - `Check my balance` — Real on-chain balances
+   - `Swap 0.001 ETH to USDC` — Real Uniswap V3 swap
+   - `Send 0.0001 ETH to 0x...` — Real ETH transfer
+   - `Pay 0.01 USDC to agent-oracle` — Agent nanopayment
+   - `Show audit log` — Hedera HCS audit trail
+   - `Show my history` — 0G storage operation history
+
+## 🔗 Deployed Contracts & Addresses
+
+| Contract | Address | Chain |
+|----------|---------|-------|
+| SwapRouter02 | `0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4` | Base Sepolia |
+| UniswapV3Factory | `0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24` | Base Sepolia |
+| WETH | `0x4200000000000000000000000000000000000006` | Base Sepolia |
+| USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Base Sepolia |
+| Nova Agent Wallet | `0x834583E76fbE01a9297982639AE72994A49872EB` | Base Sepolia |
+
+## 👥 Team
+
+- **Samir** ([@Samir_18100](https://t.me/Samir_18100))
+- **Habi** ([habicll](https://github.com/habicll))
+
+## 📄 License
+
+MIT
 
 ---
 
