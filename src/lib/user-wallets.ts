@@ -70,6 +70,7 @@ export async function getNonceForAccount(chainId: number, address: `0x${string}`
 
 const MIN_BALANCE = parseEther('0.0005');
 const FUND_AMOUNT = parseEther('0.001');
+const SA_FUND_AMOUNT = parseEther('0.003'); // More ETH for Smart Account (needs value for swaps)
 
 /** Fund user wallet from treasury if balance is below threshold */
 export async function ensureUserFunded(userId: number, chainId: number): Promise<void> {
@@ -106,13 +107,32 @@ export async function ensureUserFunded(userId: number, chainId: number): Promise
       const nonce2 = await getNonceForAccount(chainId, treasury.address);
       const txHash2 = await treasuryWallet.sendTransaction({
         ...gas, nonce: nonce2,
-        to: saAddr, value: FUND_AMOUNT,
+        to: saAddr, value: SA_FUND_AMOUNT,
         chain: treasuryWallet.chain, account: treasury,
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash2 });
-      console.log(`[nova] Funded user ${userId} smart account ${saAddr} with 0.001 ETH`);
+      console.log(`[nova] Funded user ${userId} smart account ${saAddr} with 0.003 ETH`);
     }
-  } catch { /* smart account funding is best-effort */ }
+
+    // Also send USDC to EOA for nanopayments
+    const { erc20Abi, encodeFunctionData } = require('viem');
+    const USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+    const userUsdcBal = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: 'balanceOf', args: [userAccount.address] });
+    if ((userUsdcBal as bigint) < BigInt(50000)) { // < 0.05 USDC
+      const treasuryUsdcBal = await publicClient.readContract({ address: USDC, abi: erc20Abi, functionName: 'balanceOf', args: [treasury.address] });
+      if ((treasuryUsdcBal as bigint) > BigInt(100000)) { // treasury has > 0.1 USDC
+        const nonce3 = await getNonceForAccount(chainId, treasury.address);
+        const transferData = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [userAccount.address, BigInt(50000)] }); // 0.05 USDC
+        const txHash3 = await treasuryWallet.sendTransaction({
+          ...gas, nonce: nonce3,
+          to: USDC, data: transferData,
+          chain: treasuryWallet.chain, account: treasury,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: txHash3 });
+        console.log(`[nova] Sent 0.05 USDC to user ${userId} for nanopayments`);
+      }
+    }
+  } catch (e) { console.error('[nova] Smart account/USDC funding error:', e instanceof Error ? e.message.slice(0,100) : e); }
 }
 
 /** Get a Pimlico-sponsored smart account client for a user (gasless txs) */
