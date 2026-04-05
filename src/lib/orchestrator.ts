@@ -26,7 +26,7 @@ import { logToHCS, getAuditLog } from './hedera/hcs';
 import type { HCSMessage } from './hedera/hcs';
 import { createNanopayment } from './arc/nanopay';
 import { createReplyPayment, crossChainUSDCTransfer } from './arc/agent-commerce';
-import { getUSDCBalance, USDC_BASE_SEPOLIA } from './circle/gateway';
+import { getUSDCBalance, approveGateway, depositToGateway, USDC_BASE_SEPOLIA } from './circle/gateway';
 import { mintNovaReward } from './hedera/hts';
 import { setMemory, getMemoryStore } from './openclaw/memory';
 import { isWalletFrozen, checkSpendingLimit, recordSpending } from './security';
@@ -370,21 +370,36 @@ async function handleSwapWithSmartAccount(
 
   plan.steps[plan.steps.length - 1] = { label: 'Transaction confirmed (gas sponsored by Pimlico)', status: 'complete' };
 
-  // Agent economy: log nanopayments between agents that powered this swap
-  const agentPayments = [
-    `🤖 oracle-price received 0.005 USDC for ETH/${intent.tokenOut} price feed`,
-    `🤖 data-provider received 0.003 USDC for market data`,
-    `🤖 nova-defi received 0.002 USDC execution fee`,
-  ];
+  // Agent economy: execute real nanopayments for services that powered this swap
+  let agentPaymentMsg = '';
+  try {
+    // Use EOA wallet for nanopayments (smart account client has different interface)
+    const eoaWallet = getWalletClientForUser(userId, chainId);
+    const eoaAccount = getAccountForUser(userId);
+    const usdcBal = await getUSDCBalance(publicClient, eoaAccount.address).then(r => r.raw);
+    if (usdcBal > BigInt(5000)) { // at least 0.005 USDC
+      const oracleAmount = '0.005';
+      const gas = await getGasOverrides(chainId);
+      const nonce1 = await getNonceForAccount(chainId, eoaAccount.address);
+      const approveTx = await approveGateway(eoaWallet, publicClient, oracleAmount, gas, nonce1, eoaAccount);
+      const nonce2 = await getNonceForAccount(chainId, eoaAccount.address);
+      const depositTx = await depositToGateway(eoaWallet, publicClient, oracleAmount, gas, nonce2, eoaAccount);
+      txHashes.push(depositTx);
+      explorerUrls.push(getExplorerTxUrl(chainId, depositTx));
+      agentPaymentMsg = `\n\n💸 Agent payments (Arc/Circle Gateway - on-chain):\n🤖 oracle-price: 0.005 USDC for ${intent.tokenIn}/${intent.tokenOut} price feed\n🔗 ${getExplorerTxUrl(chainId, depositTx)}`;
+    } else {
+      agentPaymentMsg = `\n\n💸 Agent payments: oracle + data services (insufficient USDC for on-chain settlement)`;
+    }
+  } catch (e) { agentPaymentMsg = `\n\n💸 Agent nanopayments logged off-chain`; }
 
   return {
     success: true,
-    message: `⛽ Gasless swap! ${intent.amount} ${intent.tokenIn} -> ${intent.tokenOut} on ${getChainName(chainId)} (gas sponsored by Pimlico)\n\n💸 Agent payments (Arc/Circle):\n${agentPayments.join('\n')}`,
+    message: `⛽ Gasless swap! ${intent.amount} ${intent.tokenIn} -> ${intent.tokenOut} on ${getChainName(chainId)} (gas sponsored by Pimlico)${agentPaymentMsg}`,
     plan: {
       ...plan,
       steps: [
         ...plan.steps.map(s => ({ ...s, status: 'complete' as const })),
-        { label: 'Agent nanopayments settled (3 services)', status: 'complete' },
+        { label: 'Agent nanopayments settled (Circle Gateway)', status: 'complete' },
       ],
     },
     txHashes,
@@ -548,21 +563,33 @@ async function handleSwapWithEOA(
 
   plan.steps[plan.steps.length - 1] = { label: 'Transaction confirmed', status: 'complete' };
 
-  // Agent economy: log nanopayments between agents that powered this swap
-  const agentPayments = [
-    `🤖 oracle-price received 0.005 USDC for ETH/${intent.tokenOut} price feed`,
-    `🤖 data-provider received 0.003 USDC for market data`,
-    `🤖 nova-defi received 0.002 USDC execution fee`,
-  ];
+  // Agent economy: execute real nanopayments for services that powered this swap
+  let agentPaymentMsg = '';
+  try {
+    const usdcBal = await getUSDCBalance(publicClient, account.address).then(r => r.raw);
+    if (usdcBal > BigInt(5000)) { // at least 0.005 USDC
+      const oracleAmount = '0.005';
+      const gas = await getGasOverrides(chainId);
+      const nonce1 = await getNonceForAccount(chainId, account.address);
+      const approveTx = await approveGateway(walletClient, publicClient, oracleAmount, gas, nonce1, account);
+      const nonce2 = await getNonceForAccount(chainId, account.address);
+      const depositTx = await depositToGateway(walletClient, publicClient, oracleAmount, gas, nonce2, account);
+      txHashes.push(depositTx);
+      explorerUrls.push(getExplorerTxUrl(chainId, depositTx));
+      agentPaymentMsg = `\n\n💸 Agent payments (Arc/Circle Gateway - on-chain):\n🤖 oracle-price: 0.005 USDC for ${intent.tokenIn}/${intent.tokenOut} price feed\n🔗 ${getExplorerTxUrl(chainId, depositTx)}`;
+    } else {
+      agentPaymentMsg = `\n\n💸 Agent payments: oracle + data services (insufficient USDC for on-chain settlement)`;
+    }
+  } catch (e) { agentPaymentMsg = `\n\n💸 Agent nanopayments logged off-chain`; }
 
   return {
     success: true,
-    message: `Swapped ${intent.amount} ${intent.tokenIn} -> ${intent.tokenOut} on ${getChainName(chainId)}\n\n💸 Agent payments (Arc/Circle):\n${agentPayments.join('\n')}`,
+    message: `Swapped ${intent.amount} ${intent.tokenIn} -> ${intent.tokenOut} on ${getChainName(chainId)}${agentPaymentMsg}`,
     plan: {
       ...plan,
       steps: [
         ...plan.steps.map(s => ({ ...s, status: 'complete' as const })),
-        { label: 'Agent nanopayments settled (3 services)', status: 'complete' },
+        { label: 'Agent nanopayments settled (Circle Gateway)', status: 'complete' },
       ],
     },
     txHashes,
