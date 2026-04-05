@@ -376,21 +376,22 @@ async function handleSwapWithSmartAccount(
     // Use EOA wallet for nanopayments (smart account client has different interface)
     const eoaWallet = getWalletClientForUser(userId, chainId);
     const eoaAccount = getAccountForUser(userId);
-    const usdcBal = await getUSDCBalance(publicClient, eoaAccount.address).then(r => r.raw);
+    const eoaPublicClient = getServerPublicClient(chainId);
+    const usdcBal = await getUSDCBalance(eoaPublicClient, eoaAccount.address).then(r => r.raw);
     if (usdcBal > BigInt(5000)) { // at least 0.005 USDC
       const oracleAmount = '0.005';
       const gas = await getGasOverrides(chainId);
       const nonce1 = await getNonceForAccount(chainId, eoaAccount.address);
-      const approveTx = await approveGateway(eoaWallet, publicClient, oracleAmount, gas, nonce1, eoaAccount);
+      const approveTx = await approveGateway(eoaWallet, eoaPublicClient, oracleAmount, gas, nonce1, eoaAccount);
       const nonce2 = await getNonceForAccount(chainId, eoaAccount.address);
-      const depositTx = await depositToGateway(eoaWallet, publicClient, oracleAmount, gas, nonce2, eoaAccount);
+      const depositTx = await depositToGateway(eoaWallet, eoaPublicClient, oracleAmount, gas, nonce2, eoaAccount);
       txHashes.push(depositTx);
       explorerUrls.push(getExplorerTxUrl(chainId, depositTx));
       agentPaymentMsg = `\n\n💸 Agent payments (Arc/Circle Gateway - on-chain):\n🤖 oracle-price: 0.005 USDC for ${intent.tokenIn}/${intent.tokenOut} price feed\n🔗 ${getExplorerTxUrl(chainId, depositTx)}`;
     } else {
       agentPaymentMsg = `\n\n💸 Agent payments: oracle + data services (insufficient USDC for on-chain settlement)`;
     }
-  } catch (e) { agentPaymentMsg = `\n\n💸 Agent nanopayments logged off-chain`; }
+  } catch (e: any) { console.error('[nanopay-auto]', e?.message?.slice(0, 150)); agentPaymentMsg = `\n\n💸 Agent nanopayments logged off-chain`; }
 
   return {
     success: true,
@@ -580,7 +581,7 @@ async function handleSwapWithEOA(
     } else {
       agentPaymentMsg = `\n\n💸 Agent payments: oracle + data services (insufficient USDC for on-chain settlement)`;
     }
-  } catch (e) { agentPaymentMsg = `\n\n💸 Agent nanopayments logged off-chain`; }
+  } catch (e: any) { console.error('[nanopay-auto]', e?.message?.slice(0, 150)); agentPaymentMsg = `\n\n💸 Agent nanopayments logged off-chain`; }
 
   return {
     success: true,
